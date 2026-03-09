@@ -138,31 +138,38 @@ export class NewsService {
       `${merged.length} relevant candidates after scoring. Fetching full content...`,
     );
 
-    // Fetch full article content — only keep stories we can fully read
+    // Fetch full article content — fall back to description snippet if scraping fails
     const withContent: RealNewsItem[] = [];
 
     for (const item of merged) {
       if (withContent.length >= count) break;
 
-      const articleText = await this.fetchFullArticleText(item.url);
-
-      if (!articleText) {
-        this.logger.warn(
-          `Skipping "${item.title}" — could not fetch full content`,
-        );
-        continue;
-      }
-
-      this.logger.log(`✓ "${item.title}" [${item.source}]`);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { _relevance, ...rest } = item as RealNewsItem & {
         _relevance: number;
       };
-      withContent.push({ ...rest, articleText });
+
+      const articleText = await this.fetchFullArticleText(item.url);
+
+      if (articleText) {
+        this.logger.log(`✓ "${item.title}" [${item.source}] — full article`);
+        withContent.push({ ...rest, articleText });
+      } else if (item.description && item.description.length >= 80) {
+        this.logger.log(
+          `✓ "${item.title}" [${item.source}] — using description snippet`,
+        );
+        withContent.push({ ...rest, articleText: item.description });
+      } else {
+        this.logger.warn(
+          `Skipping "${item.title}" — no usable content (scrape failed, no description)`,
+        );
+      }
     }
 
     if (withContent.length === 0) {
-      throw new Error("Could not fetch full article content for any story");
+      throw new Error(
+        "Could not get content for any story (all scraped + no descriptions available)",
+      );
     }
 
     this.logger.log(
@@ -254,6 +261,7 @@ export class NewsService {
         const title = this.extractXmlValue(item, "title");
         const link = this.extractXmlValue(item, "link");
         const pubDate = this.extractXmlValue(item, "pubDate");
+        const description = this.extractXmlValue(item, "description");
 
         if (!title || !link) return null;
 
@@ -267,6 +275,7 @@ export class NewsService {
           publishedAt: pubDate
             ? new Date(pubDate).toISOString()
             : new Date().toISOString(),
+          description: description || undefined,
         } as RealNewsItem;
       })
       .filter((item): item is RealNewsItem => item !== null);
@@ -305,6 +314,8 @@ export class NewsService {
           articles: {
             title: string;
             url: string;
+            description?: string;
+            content?: string;
             source: { name: string };
             publishedAt: string;
           }[];
@@ -330,6 +341,8 @@ export class NewsService {
           score: 0,
           commentCount: 0,
           publishedAt: a.publishedAt,
+          // NewsAPI description is usually 150-200 chars; content has up to ~200 chars
+          description: a.description || a.content || undefined,
         }));
     } catch {
       this.logger.warn(`NewsAPI query "${query}" failed — skipping`);

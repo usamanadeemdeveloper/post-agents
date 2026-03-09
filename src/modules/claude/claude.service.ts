@@ -37,8 +37,10 @@ export class ClaudeService implements OnModuleInit {
     const topStory = stories[0];
     const otherHeadlines = stories
       .slice(1, 4)
-      .map((s, i) => `${i + 2}. "${s.title}" (r/${s.subreddit})`)
+      .map((s, i) => `${i + 2}. "${s.title}" (${s.source})`)
       .join("\n");
+
+    const contentLabel = topStory.articleText ? "ARTICLE CONTENT" : "ARTICLE SUMMARY";
 
     const prompt = `You are writing a LinkedIn post on behalf of an experienced software architect who specialises in building custom software for ecommerce, hospitality, and healthcare businesses. Their goal is to build authority and attract investors and clients — not to talk to other developers.
 
@@ -48,15 +50,14 @@ The tone must be:
 - Subtle service authority: position them as someone who solves these problems for clients, without being salesy
 - Accessible: investors and non-technical clients must understand every word
 
-You have been given the FULL text of a real trending post. Write ONLY from what you read — never add names, numbers, or claims not in the article.
+Write ONLY from what you read below — never add names, numbers, or claims not present in the content.
 
 TODAY'S TRENDING TOPIC:
 Title: ${topStory.title}
-Source: r/${topStory.subreddit} | ${topStory.source}
+Source: ${topStory.source}
 URL: ${topStory.url}
-Upvotes: ${topStory.score} | Comments: ${topStory.commentCount}
 
-FULL CONTENT:
+${contentLabel}:
 ${topStory.articleText}
 
 OTHER TRENDING:
@@ -68,7 +69,7 @@ Write a LinkedIn post using this EXACT structure:
 
 [Hook: one sharp sentence connecting this topic to a real pain point in ecommerce, hospitality, or healthcare. Must make a business decision-maker stop scrolling.]
 
-[Body: 2 sentences explaining what is happening and why it matters to businesses in these industries. Use specific facts from the article. Zero jargon.]
+[Body: 2 sentences explaining what is happening and why it matters to businesses in these industries. Use specific facts from the content. Zero jargon.]
 
 What this means for your business:
 • [Practical impact on ecommerce, hospitality, or healthcare operations]
@@ -82,7 +83,7 @@ Source: ${topStory.url}
 #Ecommerce #HealthcareTech #HospitalityTech
 
 STRICT RULES:
-- Every fact must come from the article above — nothing invented
+- Every fact must come from the content above — nothing invented
 - Total post length: 700–950 characters
 - Hashtags: exactly 3, always include the niche tags above plus one relevant to the story
 - Output ONLY the post text`;
@@ -99,16 +100,18 @@ STRICT RULES:
 
     const topStory = stories[0];
 
+    const contentLabel = topStory.articleText ? "ARTICLE CONTENT" : "ARTICLE SUMMARY";
+
     const prompt = `You are writing a tweet on behalf of a software architect who builds solutions for ecommerce, hospitality, and healthcare businesses. The audience is business owners, investors, and decision-makers — not developers.
 
-You have the full article below. Write ONLY from what you read — never invent details.
+Write ONLY from what you read below — never invent details.
 
 TODAY'S DATE: ${date}
 Title: ${topStory.title}
-Source: r/${topStory.subreddit}
+Source: ${topStory.source}
 URL: ${topStory.url}
 
-FULL CONTENT:
+${contentLabel}:
 ${topStory.articleText}
 
 Write ONE tweet that shares a sharp business insight from this topic.
