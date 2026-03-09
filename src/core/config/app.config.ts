@@ -1,8 +1,8 @@
 import { registerAs } from "@nestjs/config";
 
 export default registerAs("app", () => ({
-  nodeEnv: process.env.NODE_ENV ?? "development",
-  port: parseInt(process.env.PORT ?? "3000", 10),
+  nodeEnv: process.env.NODE_ENV,
+  port: parseInt(process.env.PORT!, 10),
 
   newsapi: {
     apiKey: process.env.NEWSAPI_KEY,
@@ -10,7 +10,7 @@ export default registerAs("app", () => ({
 
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,
-    model: process.env.CLAUDE_MODEL ?? "claude-opus-4-6",
+    model: process.env.CLAUDE_MODEL,
   },
 
   linkedin: {
@@ -26,6 +26,6 @@ export default registerAs("app", () => ({
   },
 
   scheduler: {
-    cronSchedule: process.env.CRON_SCHEDULE ?? "0 9 */3 * *",
+    cronSchedule: process.env.CRON_SCHEDULE,
   },
 }));

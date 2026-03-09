@@ -26,11 +26,11 @@ async function bootstrap() {
   // Global logging interceptor
   app.useGlobalInterceptors(new LoggingInterceptor());
 
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT!;
   await app.listen(port);
 
   logger.log(`Application is running on port ${port}`);
-  logger.log(`Environment: ${process.env.NODE_ENV ?? "development"}`);
+  logger.log(`Environment: ${process.env.NODE_ENV}`);
 }
 
 bootstrap();

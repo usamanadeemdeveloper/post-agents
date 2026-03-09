@@ -12,7 +12,7 @@ export const configValidationSchema = Joi.object({
 
   // Anthropic
   ANTHROPIC_API_KEY: Joi.string().required(),
-  CLAUDE_MODEL: Joi.string().default("claude-opus-4-6"),
+  CLAUDE_MODEL: Joi.string().default("claude-sonnet-4-6"),
 
   // LinkedIn — optional, but at least one platform must be configured
   LINKEDIN_ACCESS_TOKEN: Joi.string().allow("").optional(),

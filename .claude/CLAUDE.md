@@ -7,7 +7,7 @@ Posts every 3 days that:
 1. Fetches trending stories from **Reddit** (10 niche subreddits), **Google News RSS**, and **NewsAPI** in parallel
 2. Scores stories for relevance to the three target niches: **ecommerce, hospitality, healthcare software**
 3. Fetches the **full article text** for top candidates — Claude writes only from what it reads, never invents
-4. Passes full content to **Claude AI** (`claude-opus-4-6`) which formats a LinkedIn post targeting investors and clients
+4. Passes full content to **Claude AI** (`claude-sonnet-4-6`) which formats a LinkedIn post targeting investors and clients
 5. Publishes to **LinkedIn** (UGC Posts API). Twitter/X is optional.
 
 Deployed via **GitHub Actions** — runs free, no server required.

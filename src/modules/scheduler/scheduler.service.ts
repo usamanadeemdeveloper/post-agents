@@ -49,7 +49,7 @@ export class SchedulerService {
     );
   }
 
-  @Cron(process.env.CRON_SCHEDULE ?? "0 9 * * *", {
+  @Cron(process.env.CRON_SCHEDULE!, {
     name: "daily-tech-post",
     timeZone: "UTC",
   })

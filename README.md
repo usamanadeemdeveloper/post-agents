@@ -140,7 +140,7 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | Secret | Required | Where to get it |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | ✅ | console.anthropic.com |
-| `CLAUDE_MODEL` | ✅ | Set to `claude-opus-4-6` |
+| `CLAUDE_MODEL` | ✅ | Set to `claude-sonnet-4-6` |
 | `LINKEDIN_ACCESS_TOKEN` | ✅ | LinkedIn OAuth tool |
 | `LINKEDIN_PERSON_URN` | ✅ | `/v2/userinfo` curl call |
 | `NEWSAPI_KEY` | ⭐ recommended | newsapi.org |

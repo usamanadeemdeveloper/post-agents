@@ -24,8 +24,7 @@ export class ClaudeService implements OnModuleInit {
     this.client = new Anthropic({
       apiKey: this.config.get<string>("app.anthropic.apiKey"),
     });
-    this.model =
-      this.config.get<string>("app.anthropic.model") ?? "claude-opus-4-6";
+    this.model = this.config.get<string>("app.anthropic.model")!;
     this.logger.log(`Claude client initialized with model: ${this.model}`);
   }
 
