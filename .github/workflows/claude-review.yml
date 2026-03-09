@@ -17,6 +17,16 @@ jobs:
       pull-requests: write  # post the review comment
 
     steps:
+      - name: Print trigger info
+        run: |
+          echo "PR:           #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}"
+          echo "Author:       ${{ github.event.pull_request.user.login }}"
+          echo "Base branch:  ${{ github.event.pull_request.base.ref }}"
+          echo "Head branch:  ${{ github.event.pull_request.head.ref }}"
+          echo "---"
+          echo "Secrets configured:"
+          echo "  ANTHROPIC_API_KEY → ${{ secrets.ANTHROPIC_API_KEY != '' && '✓ set' || '✗ MISSING — review will fail' }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:

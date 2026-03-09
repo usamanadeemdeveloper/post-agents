@@ -7,12 +7,25 @@ on:
 
   # Allows you to trigger manually from the GitHub Actions tab anytime
   workflow_dispatch:
+    inputs:
+      debug:
+        description: 'Enable verbose debug logging'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
 
 jobs:
   post:
     name: Research & Post
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    # Enable GitHub Actions step debug logging when triggered manually with debug=true
+    # You can also enable it permanently by adding a repo secret: ACTIONS_STEP_DEBUG = true
+    env:
+      ACTIONS_STEP_DEBUG: ${{ github.event.inputs.debug == 'true' }}
+      ACTIONS_RUNNER_DEBUG: ${{ github.event.inputs.debug == 'true' }}
 
     steps:
       - name: Checkout repository
@@ -24,13 +37,29 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Print environment info
+        run: |
+          echo "Node version: $(node --version)"
+          echo "NPM version:  $(npm --version)"
+          echo "Runner OS:    ${{ runner.os }}"
+          echo "Triggered by: ${{ github.event_name }}"
+          echo "Debug mode:   ${{ github.event.inputs.debug || 'false' }}"
+          echo "---"
+          echo "Secrets configured:"
+          echo "  ANTHROPIC_API_KEY  → ${{ secrets.ANTHROPIC_API_KEY != '' && '✓ set' || '✗ MISSING' }}"
+          echo "  NEWSAPI_KEY        → ${{ secrets.NEWSAPI_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
+          echo "  LINKEDIN tokens    → ${{ secrets.LINKEDIN_ACCESS_TOKEN != '' && '✓ set' || '✗ MISSING' }}"
+          echo "  TWITTER tokens     → ${{ secrets.TWITTER_APP_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Run daily post pipeline
+      - name: Run post pipeline
         run: npm run trigger
         env:
           NODE_ENV: production
+          # Enable Node.js async stack traces for better error details
+          NODE_OPTIONS: '--enable-source-maps'
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_MODEL: ${{ secrets.CLAUDE_MODEL }}

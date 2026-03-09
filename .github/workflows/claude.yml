@@ -41,6 +41,15 @@ jobs:
       actions: read          # read workflow/CI logs for debugging context
 
     steps:
+      - name: Print trigger info
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+          echo "Actor:        ${{ github.actor }}"
+          echo "Repo:         ${{ github.repository }}"
+          echo "---"
+          echo "Secrets configured:"
+          echo "  ANTHROPIC_API_KEY → ${{ secrets.ANTHROPIC_API_KEY != '' && '✓ set' || '✗ MISSING — bot will fail' }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
