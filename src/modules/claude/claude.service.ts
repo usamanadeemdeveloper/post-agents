@@ -7,6 +7,7 @@ import {
   ClaudeResearchResponse,
 } from "./interfaces/claude-research.interface";
 import { RealNewsItem } from "../news/interfaces/news-item.interface";
+import { appendPostFooter } from "../../shared/constants/post-footer";
 
 @Injectable()
 export class ClaudeService implements OnModuleInit {
@@ -89,7 +90,7 @@ STRICT RULES:
 - Output ONLY the post text`;
 
     const response = await this.ask({ prompt, maxTokens: 600 });
-    return response.content.trim();
+    return appendPostFooter(response.content.trim());
   }
 
   async generateTwitterPost(
@@ -125,7 +126,7 @@ STRICT RULES:
 - Output ONLY the tweet text and URL, nothing else`;
 
     const response = await this.ask({ prompt, maxTokens: 200 });
-    return response.content.trim();
+    return appendPostFooter(response.content.trim());
   }
 
   private async ask(
