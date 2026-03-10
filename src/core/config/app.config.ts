@@ -28,4 +28,10 @@ export default registerAs("app", () => ({
   scheduler: {
     cronSchedule: process.env.CRON_SCHEDULE,
   },
+
+  prompts: {
+    postingStyle: process.env.POSTING_STYLE ?? 'default',
+    defaultTone: process.env.DEFAULT_TONE ?? '',
+    promptVersion: process.env.PROMPT_VERSION ?? '',
+  },
 }));
