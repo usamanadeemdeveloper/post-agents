@@ -26,4 +26,11 @@ export const configValidationSchema = Joi.object({
 
   // Scheduler
   CRON_SCHEDULE: Joi.string().default("0 9 */3 * *"),
+
+  // Prompting
+  POSTING_STYLE: Joi.string()
+    .valid("default", "technical", "marketing", "casual")
+    .default("default"),
+  DEFAULT_TONE: Joi.string().allow("").optional(),
+  PROMPT_VERSION: Joi.string().allow("").optional(),
 });

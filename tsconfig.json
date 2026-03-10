@@ -21,7 +21,8 @@
       "@core/*": ["src/core/*"],
       "@modules/*": ["src/modules/*"],
       "@shared/*": ["src/shared/*"],
-      "@common/*": ["src/common/*"]
+      "@common/*": ["src/common/*"],
+      "@prompts/*": ["prompts/*"]
     }
   }
 }
