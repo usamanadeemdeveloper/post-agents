@@ -8,13 +8,17 @@ on:
   pull_request:
     types: [opened, synchronize]
 
+permissions:
+  id-token: write
+
 jobs:
   review:
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      pull-requests: write  # post the review comment
+      pull-requests: write
+      id-token: write
 
     steps:
       - name: Print trigger info
@@ -30,21 +34,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Claude PR Review
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Tell Claude exactly what kind of review to do
-          direct_prompt: |
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
             Review this pull request thoroughly. Provide feedback covering:
 
-            1. **Summary** — what does this PR do in 2-3 sentences?
-            2. **Potential bugs** — anything that could break at runtime?
-            3. **Code quality** — naming, structure, NestJS best practices, TypeScript strictness
-            4. **Security** — any exposed secrets, injection risks, or unsafe patterns?
-            5. **Suggestions** — concrete improvements with code examples where helpful
+            1. Summary — what does this PR do in 2–3 sentences?
+            2. Potential bugs — anything that could break at runtime?
+            3. Code quality — naming, structure, best practices, TypeScript strictness
+            4. Security — any exposed secrets, injection risks, or unsafe patterns
+            5. Suggestions — concrete improvements with code examples
 
             Be direct and specific. If the code looks good, say so.
-            Format your review as a clear markdown comment on the PR.
+            Format the response as a markdown PR review comment.
