@@ -76,13 +76,35 @@ Copy the `sub` value → your URN is `urn:li:person:THAT_VALUE` → `LINKEDIN_PE
 
 ### 4. Twitter / X — optional
 
-1. Go to [developer.twitter.com](https://developer.twitter.com) → apply for developer access
-2. Create a Project → create an App inside it
-3. **User authentication settings** → set permissions to **Read and Write** → save
-4. **Keys and Tokens** tab:
-   - **API Key** → `TWITTER_APP_KEY`
-   - **API Secret** → `TWITTER_APP_SECRET`
-   - Click **Generate** under Access Token → `TWITTER_ACCESS_TOKEN` + `TWITTER_ACCESS_SECRET`
+**Step 1 — Create a developer app**
+1. Go to [developer.twitter.com/en/portal/dashboard](https://developer.twitter.com/en/portal/dashboard)
+2. Click **+ Create Project** → give it a name → select **Making a bot** as use case
+3. Create an **App** inside the project → give it a name → click **Complete**
+
+**Step 2 — Enable Read and Write permissions**
+1. Open your app → go to **User authentication settings**
+2. Set **App permissions** to **Read and Write**
+3. Set **Type of App** to **Web App, Automated App or Bot**
+4. For **Callback URI** enter `https://localhost` (placeholder — not used)
+5. For **Website URL** enter any URL (e.g. your GitHub repo)
+6. Click **Save**
+
+> ⚠️ You MUST set Read and Write permissions BEFORE generating tokens — tokens generated with Read-only permissions cannot post tweets.
+
+**Step 3 — Get your keys**
+
+Open your app → click the **Keys and tokens** icon (or go to **Apps → your app → Keys and tokens panel**). You will see:
+
+| What you see on screen | `.env` variable |
+|---|---|
+| **OAuth 1.0 Keys → Consumer Key** → click **Show** | `TWITTER_APP_KEY` |
+| **OAuth 1.0 Keys → Consumer Key** → click **Regenerate** → copy the **Consumer Secret** shown | `TWITTER_APP_SECRET` |
+| **OAuth 1.0 Keys → Access Token** → click **Generate** → copy the **Access Token** shown | `TWITTER_ACCESS_TOKEN` |
+| Same generation popup → copy the **Access Token Secret** | `TWITTER_ACCESS_SECRET` |
+
+> ⚠️ The Access Token and Secret are shown **only once** at generation time. Copy them immediately — if you close the popup you must regenerate.
+
+> The **OAuth 2.0 Keys** section (Client ID / Client Secret) is NOT needed — ignore it.
 
 > Free tier: 1,500 posts/month — more than enough.
 
