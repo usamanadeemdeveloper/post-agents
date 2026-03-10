@@ -9,6 +9,7 @@ import {
 import { RealNewsItem } from "../news/interfaces/news-item.interface";
 import { resolvePrompt } from "../../../prompts/prompt-resolver";
 import { PostingStyle } from "../../../prompts/prompt-params.interface";
+import { appendPostFooter } from "../../shared/constants/post-footer";
 
 @Injectable()
 export class ClaudeService implements OnModuleInit {
@@ -48,7 +49,7 @@ export class ClaudeService implements OnModuleInit {
     const prompt = resolvePrompt("linkedin", { topStory, otherHeadlines, date, tone }, style);
 
     const response = await this.ask({ prompt, maxTokens: 600 });
-    return response.content.trim();
+    return appendPostFooter(response.content.trim());
   }
 
   async generateTwitterPost(
@@ -66,7 +67,7 @@ export class ClaudeService implements OnModuleInit {
     const prompt = resolvePrompt("twitter", { topStory, otherHeadlines, date, tone }, style);
 
     const response = await this.ask({ prompt, maxTokens: 200 });
-    return response.content.trim();
+    return appendPostFooter(response.content.trim());
   }
 
   private async ask(
