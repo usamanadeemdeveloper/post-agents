@@ -1,6 +1,6 @@
 # post-agents
 
-Automated LinkedIn posting agent for software architects targeting investors and clients in **ecommerce, hospitality, and healthcare**. Researches real trending discussions across Reddit, Google News, and NewsAPI — then uses Claude AI to write authoritative, fact-only posts every 3 days.
+Automated LinkedIn (and optionally X/Twitter) posting agent for software architects targeting investors and clients in **ecommerce, hospitality, and healthcare**. Researches real trending discussions across Reddit, Google News, and NewsAPI — then uses Claude AI to write authoritative, fact-only posts every 3 days.
 
 **Runs completely free** via GitHub Actions. No server required.
 
@@ -11,23 +11,30 @@ Automated LinkedIn posting agent for software architects targeting investors and
 ```
 Every 3 days at 9:00 AM UTC
         ↓
-Fetch trending stories from Reddit (10 niche subreddits)
-                        + Google News RSS (3 niche queries)
-                        + NewsAPI (3 niche queries)
+Fetch trending stories in parallel:
+  ├── Reddit   (10 niche subreddits, hot.json)
+  ├── Google News RSS  (3 niche queries)
+  └── NewsAPI  (3 niche queries, optional)
         ↓
-Score for relevance to ecommerce / hospitality / healthcare software
+Merge → deduplicate → niche keyword score → top candidates
         ↓
-Fetch full article text for top candidates
+Fetch full article text for each candidate
+  └── Fallback: use description snippet if scraping fails
         ↓
-Claude AI writes a LinkedIn post (700–950 chars)
-Facts come only from the real article. Source URL always included.
+Claude AI generates posts in parallel:
+  ├── LinkedIn post  (style: default | technical | marketing | casual)
+  └── X/Twitter post (same style, shorter format)
         ↓
-Publish to LinkedIn
+Publish to configured platforms in parallel:
+  ├── LinkedIn  (UGC Posts API)  — if credentials set
+  └── X/Twitter (twitter-api-v2) — if credentials set
+        ↓
+Each post is appended with: 🤖 Auto-posted via PostAgent — built by Usama Nadeem
         ↓
 GitHub Actions marks run ✓ or ✗
 ```
 
-> Twitter/X is optional — configure credentials to enable it, leave blank to skip.
+> At least one platform must be configured. If only LinkedIn credentials are set, Twitter is silently skipped — and vice versa.
 
 ---
 
@@ -50,7 +57,7 @@ GitHub Actions marks run ✓ or ✗
 
 ---
 
-### 3. LinkedIn — required
+### 3. LinkedIn — required (unless Twitter is configured)
 
 **Step 1 — Create a LinkedIn Developer App**
 1. Go to [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps) → **Create app**
@@ -121,7 +128,7 @@ npm install
 # 2. Configure environment
 cp .env.example .env
 # Fill in: ANTHROPIC_API_KEY, LINKEDIN_ACCESS_TOKEN, LINKEDIN_PERSON_URN
-# Optional: NEWSAPI_KEY, TWITTER_* credentials
+# Optional: NEWSAPI_KEY, TWITTER_* credentials, POSTING_STYLE
 
 # 3. Test LinkedIn credentials first (no Claude credits needed)
 npm run test:linkedin
@@ -135,7 +142,7 @@ Expected output:
 Platforms enabled — LinkedIn: ✓  Twitter: ✗
 Fetching from Reddit, Google News, and NewsAPI in parallel...
 Raw items — Reddit: 47 | Google News: 18 | NewsAPI: 22
-✓ "How AI is transforming hotel check-in" [r/hospitality]
+✓ "How AI is transforming hotel check-in" [r/hospitality] — full article
 ...
 === Run complete ===
 LinkedIn : ✓ post ID urn:li:share:xxxxxxxxxx
@@ -166,6 +173,8 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | `LINKEDIN_ACCESS_TOKEN` | ✅ | LinkedIn OAuth tool |
 | `LINKEDIN_PERSON_URN` | ✅ | `/v2/userinfo` curl call |
 | `NEWSAPI_KEY` | ⭐ recommended | newsapi.org |
+| `POSTING_STYLE` | optional | `default` \| `technical` \| `marketing` \| `casual` |
+| `DEFAULT_TONE` | optional | Free-text tone hint passed to prompt templates |
 | `TWITTER_APP_KEY` | optional | Twitter Developer Portal |
 | `TWITTER_APP_SECRET` | optional | Twitter Developer Portal |
 | `TWITTER_ACCESS_TOKEN` | optional | Twitter Developer Portal |
@@ -176,6 +185,25 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 Posts automatically every 3 days at **9:00 AM UTC**.
 
 To trigger manually anytime: **Actions tab → Tech Post (Every 3 Days) → Run workflow**
+
+---
+
+## Customizing post style
+
+The agent supports four pluggable posting styles, selected via the `POSTING_STYLE` environment variable:
+
+| Style | Description |
+|---|---|
+| `default` | Balanced, professional tone targeting investors and clients |
+| `technical` | Deep-dives into architecture, APIs, and implementation details |
+| `marketing` | Benefit-focused, action-oriented language |
+| `casual` | Conversational, approachable tone |
+
+Each style has separate prompt templates for LinkedIn and X/Twitter located in `prompts/`. To add a custom style:
+1. Create `prompts/my-style.prompt.ts` exporting `myStyleLinkedInPrompt` and `myStyleTwitterPrompt`
+2. Add one entry to `PROMPT_REGISTRY` in `prompts/prompt-resolver.ts` — no other files need changing
+
+You can also set `DEFAULT_TONE` to a free-text hint (e.g. `"upbeat and forward-looking"`) that is injected into any template to fine-tune tone without changing the style.
 
 ---
 
@@ -225,7 +253,10 @@ Claude reads the image, finds the file, and pushes a fix commit directly.
 → Add credits at [console.anthropic.com](https://console.anthropic.com) → Plans & Billing.
 
 **No stories found / all skipped**
-→ All fetched articles were blocked by paywalls. The pipeline retries with the next best candidate automatically. If persistent, add `NEWSAPI_KEY` to increase source coverage.
+→ All fetched articles were blocked by paywalls. The pipeline automatically falls back to using the article's description snippet (if ≥ 80 characters) before skipping. If articles are persistently unavailable, add `NEWSAPI_KEY` to increase source coverage.
+
+**`No social platform configured`**
+→ Neither LinkedIn nor Twitter credentials are set. You must configure at least one platform in `.env` (or GitHub Secrets).
 
 **GitHub Actions run failed**
 → Actions tab → click the failed run → expand **Run daily post pipeline** to see full logs.
