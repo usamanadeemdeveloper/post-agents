@@ -8,81 +8,100 @@ import { RedditPost, RealNewsItem } from "./interfaces/news-item.interface";
 // ─── Reddit ───────────────────────────────────────────────────────────────────
 const REDDIT_BASE = "https://www.reddit.com";
 const TARGET_SUBREDDITS = [
-  "ecommerce",
-  "shopify",
-  "AmazonSeller",
-  "healthIT",
-  "digitalhealth",
-  "hospitality",
-  "hotel",
+  "programming",
   "softwarearchitecture",
-  "entrepreneur",
-  "startups",
+  "webdev",
+  "javascript",
+  "typescript",
+  "reactjs",
+  "nextjs",
+  "node",
+  "devops",
+  "aws",
+  "machinelearning",
+  "artificial",
+  "LocalLLaMA",
+  "experienceddevs",
 ];
 
 // ─── Google News RSS ──────────────────────────────────────────────────────────
 const GOOGLE_NEWS_BASE = "https://news.google.com/rss/search";
 const GOOGLE_NEWS_QUERIES = [
-  "ecommerce software technology retail",
-  "healthcare technology software digital health",
-  "hospitality technology hotel software",
+  "TypeScript OR JavaScript OR Python release update framework",
+  "AI agents OR LLM developer tools OR coding assistant open source",
+  "React OR Next.js OR Node.js OR Vite OR Angular release",
+  "AWS OR Kubernetes OR Docker OR DevOps engineering update",
 ];
 
 // ─── NewsAPI ──────────────────────────────────────────────────────────────────
 const NEWSAPI_BASE = "https://newsapi.org/v2/everything";
 const NEWSAPI_QUERIES = [
-  "ecommerce software OR retail technology",
-  "healthcare technology OR health IT software",
-  "hospitality technology OR hotel software",
+  "TypeScript OR JavaScript OR Python OR Rust OR Go framework release",
+  "AI agents OR LLM tooling OR developer productivity OR coding assistant",
+  "React OR Next.js OR Node.js OR web framework update",
+  "Kubernetes OR Docker OR AWS OR DevOps OR platform engineering",
 ];
 
-// ─── Niche relevance scoring ──────────────────────────────────────────────────
+// ─── Developer relevance scoring ──────────────────────────────────────────────
 const NICHE_KEYWORDS = [
-  // Ecommerce
-  "ecommerce",
-  "e-commerce",
-  "retail",
-  "shopify",
-  "amazon",
-  "marketplace",
-  "checkout",
-  "payment",
-  "cart",
-  "online store",
-  "online shopping",
-  "merchant",
-  // Healthcare
-  "healthcare",
-  "health tech",
-  "hospital",
-  "patient",
-  "medical",
-  "ehr",
-  "telemedicine",
-  "pharma",
-  "clinical",
-  "digital health",
-  "health it",
-  // Hospitality
-  "hospitality",
-  "hotel",
-  "restaurant",
-  "booking",
-  "reservation",
-  "travel tech",
-  "property management",
-  "pms",
-  "guest experience",
-  // Software / business (general)
-  "software",
-  "platform",
-  "automation",
-  "saas",
-  "digital transformation",
-  "technology",
+  // Languages / runtimes
+  "typescript",
+  "javascript",
+  "python",
+  "rust",
+  "golang",
+  "go ",
+  "java",
+  "node",
+  // Frameworks / stacks
+  "react",
+  "next.js",
+  "nextjs",
+  "vue",
+  "angular",
+  "svelte",
+  "spring",
+  "django",
+  "laravel",
+  "vite",
+  // AI / agents
+  "llm",
+  "agent",
+  "agents",
   "ai",
-  "integration",
-  "efficiency",
+  "model",
+  "inference",
+  "prompt",
+  "copilot",
+  "rag",
+  // Dev tooling / architecture
+  "developer tool",
+  "devtools",
+  "sdk",
+  "api",
+  "open source",
+  "github",
+  "release",
+  "changelog",
+  "framework",
+  "runtime",
+  "architecture",
+  "performance",
+  "scalability",
+  "benchmark",
+  "security",
+  "cve",
+  // Cloud / platform engineering
+  "devops",
+  "kubernetes",
+  "docker",
+  "aws",
+  "gcp",
+  "azure",
+  "serverless",
+  "platform engineering",
+  "ci/cd",
+  "software",
 ];
 
 @Injectable()
@@ -114,7 +133,7 @@ export class NewsService {
       `Raw items — Reddit: ${redditItems.length} | Google News: ${googleItems.length} | NewsAPI: ${newsApiItems.length}`,
     );
 
-    // Merge, deduplicate by URL, score for niche relevance, sort
+    // Merge, deduplicate by URL, score for developer relevance, sort
     const seen = new Set<string>();
     const merged = [...redditItems, ...googleItems, ...newsApiItems]
       .filter((item) => {
@@ -126,12 +145,12 @@ export class NewsService {
         ...item,
         _relevance: this.relevanceScore(item.title),
       }))
-      .filter((item) => item._relevance > 0) // must match at least one niche keyword
+      .filter((item) => item._relevance > 0) // must match at least one dev keyword
       .sort((a, b) => b._relevance - a._relevance || b.score - a.score)
       .slice(0, count * 4); // top candidates before article fetch
 
     if (merged.length === 0) {
-      throw new Error("No niche-relevant stories found across all sources");
+      throw new Error("No developer-relevant stories found across all sources");
     }
 
     this.logger.log(

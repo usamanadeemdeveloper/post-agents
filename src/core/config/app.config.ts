@@ -29,6 +29,12 @@ export default registerAs("app", () => ({
     cronSchedule: process.env.CRON_SCHEDULE,
     postVariationSeed: process.env.POST_VARIATION_SEED,
     postHistoryFile: process.env.POST_HISTORY_FILE,
+    contentSimilarityThreshold: (() => {
+      const raw = process.env.CONTENT_SIMILARITY_THRESHOLD;
+      if (!raw) return 0.8;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : 0.8;
+    })(),
   },
 
   prompts: {

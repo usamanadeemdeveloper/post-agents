@@ -28,6 +28,8 @@ interface PostedStoryEntry {
   platforms: Platform[];
   linkedinHash?: string;
   twitterHash?: string;
+  linkedinSignature?: string;
+  twitterSignature?: string;
 }
 
 interface PostHistory {
@@ -39,11 +41,13 @@ const HISTORY_VERSION = 1 as const;
 const DEFAULT_POST_HISTORY_FILE = ".post-history.json";
 const MAX_HISTORY_ENTRIES = 400;
 const MAX_GENERATION_ATTEMPTS = 3;
+const DEFAULT_CONTENT_SIMILARITY_THRESHOLD = 0.8;
 
 @Injectable()
 export class SchedulerService {
   private readonly linkedinEnabled: boolean;
   private readonly twitterEnabled: boolean;
+  private readonly contentSimilarityThreshold: number;
 
   constructor(
     private readonly news: NewsService,
@@ -66,6 +70,9 @@ export class SchedulerService {
       this.config.get("app.twitter.accessToken") &&
       this.config.get("app.twitter.accessSecret")
     );
+    this.contentSimilarityThreshold =
+      this.config.get<number>("app.scheduler.contentSimilarityThreshold") ??
+      DEFAULT_CONTENT_SIMILARITY_THRESHOLD;
 
     if (!this.linkedinEnabled && !this.twitterEnabled) {
       throw new Error(
@@ -75,6 +82,9 @@ export class SchedulerService {
 
     this.logger.log(
       `Platforms enabled — LinkedIn: ${this.linkedinEnabled ? "✓" : "✗"}  Twitter: ${this.twitterEnabled ? "✓" : "✗"}`,
+    );
+    this.logger.log(
+      `Content similarity threshold: ${this.contentSimilarityThreshold}`,
     );
   }
 
@@ -265,6 +275,14 @@ export class SchedulerService {
         tweetContent && result.twitterResult.success
           ? this.contentHash("twitter", tweetContent)
           : undefined,
+      linkedinSignature:
+        linkedInContent && result.linkedinResult.success
+          ? this.contentSignature(linkedInContent)
+          : undefined,
+      twitterSignature:
+        tweetContent && result.twitterResult.success
+          ? this.contentSignature(tweetContent)
+          : undefined,
     });
 
     history.entries = history.entries.slice(0, MAX_HISTORY_ENTRIES);
@@ -302,7 +320,11 @@ export class SchedulerService {
             (entry.linkedinHash === undefined ||
               typeof entry.linkedinHash === "string") &&
             (entry.twitterHash === undefined ||
-              typeof entry.twitterHash === "string"),
+              typeof entry.twitterHash === "string") &&
+            (entry.linkedinSignature === undefined ||
+              typeof entry.linkedinSignature === "string") &&
+            (entry.twitterSignature === undefined ||
+              typeof entry.twitterSignature === "string"),
         ),
       };
     } catch (error) {
@@ -444,16 +466,40 @@ export class SchedulerService {
     history: PostHistory,
   ): boolean {
     const hash = this.contentHash(platform, content);
-    const existing = history.entries.map((entry) =>
-      platform === "linkedin" ? entry.linkedinHash : entry.twitterHash,
-    );
-    return existing.includes(hash);
+    const signature = this.contentSignature(content);
+
+    for (const entry of history.entries) {
+      const existingHash =
+        platform === "linkedin" ? entry.linkedinHash : entry.twitterHash;
+      if (existingHash === hash) return true;
+
+      const existingSignature =
+        platform === "linkedin"
+          ? entry.linkedinSignature
+          : entry.twitterSignature;
+      if (!existingSignature) continue;
+
+      if (
+        this.textSimilarity(signature, existingSignature) >=
+        this.contentSimilarityThreshold
+      ) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private contentHash(platform: Platform, content: string): string {
     const canonical = this.normalizeGeneratedContent(content);
     const hash = this.hashSeed(`${platform}|${canonical}`);
     return hash.toString(16).padStart(8, "0");
+  }
+
+  private contentSignature(content: string): string {
+    const canonical = this.normalizeGeneratedContent(content);
+    const tokens = this.tokenizeForSimilarity(canonical);
+    return [...new Set(tokens)].sort().join(" ");
   }
 
   private normalizeGeneratedContent(content: string): string {
@@ -478,5 +524,90 @@ export class SchedulerService {
       .replace(/[^a-z0-9\s]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  private tokenizeForSimilarity(text: string): string[] {
+    const stopWords = new Set([
+      "the",
+      "and",
+      "for",
+      "with",
+      "that",
+      "this",
+      "from",
+      "your",
+      "into",
+      "they",
+      "them",
+      "their",
+      "will",
+      "are",
+      "was",
+      "were",
+      "been",
+      "have",
+      "has",
+      "had",
+      "than",
+      "then",
+      "but",
+      "not",
+      "you",
+      "our",
+      "its",
+      "can",
+      "all",
+      "new",
+      "now",
+      "out",
+      "why",
+      "how",
+      "what",
+      "when",
+      "where",
+      "who",
+      "which",
+      "about",
+      "over",
+      "under",
+      "through",
+      "across",
+      "more",
+      "most",
+      "much",
+      "many",
+      "just",
+      "also",
+      "only",
+      "very",
+      "being",
+      "still",
+      "industry",
+      "business",
+      "platform",
+      "platforms",
+      "software",
+      "technology",
+    ]);
+
+    return text
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 4)
+      .filter((token) => !stopWords.has(token));
+  }
+
+  private textSimilarity(a: string, b: string): number {
+    const aTokens = new Set(this.tokenizeForSimilarity(a));
+    const bTokens = new Set(this.tokenizeForSimilarity(b));
+
+    if (aTokens.size === 0 || bTokens.size === 0) return 0;
+
+    let intersection = 0;
+    for (const token of aTokens) {
+      if (bTokens.has(token)) intersection += 1;
+    }
+
+    return intersection / Math.max(aTokens.size, bTokens.size);
   }
 }

@@ -52,6 +52,7 @@ jobs:
           echo "  NEWSAPI_KEY        → ${{ secrets.NEWSAPI_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
           echo "  LINKEDIN tokens    → ${{ secrets.LINKEDIN_ACCESS_TOKEN != '' && '✓ set' || '✗ MISSING' }}"
           echo "  TWITTER tokens     → ${{ secrets.TWITTER_APP_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
+          echo "  CONTENT_SIMILARITY_THRESHOLD → ${{ secrets.CONTENT_SIMILARITY_THRESHOLD != '' && '✓ set' || '✗ not set (default 0.80)' }}"
 
       - name: Install dependencies
         run: npm ci
@@ -72,6 +73,7 @@ jobs:
           TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
           TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
           POST_VARIATION_SEED: ${{ github.run_id }}-${{ github.run_attempt }}
+          CONTENT_SIMILARITY_THRESHOLD: ${{ secrets.CONTENT_SIMILARITY_THRESHOLD }}
 
       - name: Persist post history
         if: always()
