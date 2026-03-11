@@ -20,6 +20,8 @@ jobs:
     name: Research & Post
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
 
     # Enable GitHub Actions step debug logging when triggered manually with debug=true
     # You can also enable it permanently by adding a repo secret: ACTIONS_STEP_DEBUG = true
@@ -50,6 +52,7 @@ jobs:
           echo "  NEWSAPI_KEY        → ${{ secrets.NEWSAPI_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
           echo "  LINKEDIN tokens    → ${{ secrets.LINKEDIN_ACCESS_TOKEN != '' && '✓ set' || '✗ MISSING' }}"
           echo "  TWITTER tokens     → ${{ secrets.TWITTER_APP_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
+          echo "  CONTENT_SIMILARITY_THRESHOLD → ${{ secrets.CONTENT_SIMILARITY_THRESHOLD != '' && '✓ set' || '✗ not set (default 0.80)' }}"
 
       - name: Install dependencies
         run: npm ci
@@ -69,3 +72,24 @@ jobs:
           TWITTER_APP_SECRET: ${{ secrets.TWITTER_APP_SECRET }}
           TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
           TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
+          POST_VARIATION_SEED: ${{ github.run_id }}-${{ github.run_attempt }}
+          CONTENT_SIMILARITY_THRESHOLD: ${{ secrets.CONTENT_SIMILARITY_THRESHOLD }}
+
+      - name: Persist post history
+        if: always()
+        run: |
+          if [ ! -f .post-history.json ]; then
+            echo "No .post-history.json file found; skipping history persistence."
+            exit 0
+          fi
+
+          if git diff --quiet -- .post-history.json; then
+            echo "Post history unchanged."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .post-history.json
+          git commit -m "chore: update post history [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
