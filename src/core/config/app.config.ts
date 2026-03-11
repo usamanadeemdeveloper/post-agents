@@ -27,6 +27,8 @@ export default registerAs("app", () => ({
 
   scheduler: {
     cronSchedule: process.env.CRON_SCHEDULE,
+    postVariationSeed: process.env.POST_VARIATION_SEED,
+    postHistoryFile: process.env.POST_HISTORY_FILE,
   },
 
   prompts: {
