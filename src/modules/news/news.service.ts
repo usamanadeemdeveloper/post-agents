@@ -4,109 +4,16 @@ import { ConfigService } from "@nestjs/config";
 import { firstValueFrom } from "rxjs";
 import { AppLoggerService } from "../../core/logger/logger.service";
 import { RedditPost, RealNewsItem } from "./interfaces/news-item.interface";
+import { NicheProfile, resolveNiche } from "./news-niches";
 
-// ─── Reddit ───────────────────────────────────────────────────────────────────
 const REDDIT_BASE = "https://www.reddit.com";
-const TARGET_SUBREDDITS = [
-  "programming",
-  "softwarearchitecture",
-  "webdev",
-  "javascript",
-  "typescript",
-  "reactjs",
-  "nextjs",
-  "node",
-  "devops",
-  "aws",
-  "machinelearning",
-  "artificial",
-  "LocalLLaMA",
-  "experienceddevs",
-];
-
-// ─── Google News RSS ──────────────────────────────────────────────────────────
 const GOOGLE_NEWS_BASE = "https://news.google.com/rss/search";
-const GOOGLE_NEWS_QUERIES = [
-  "TypeScript OR JavaScript OR Python release update framework",
-  "AI agents OR LLM developer tools OR coding assistant open source",
-  "React OR Next.js OR Node.js OR Vite OR Angular release",
-  "AWS OR Kubernetes OR Docker OR DevOps engineering update",
-];
-
-// ─── NewsAPI ──────────────────────────────────────────────────────────────────
 const NEWSAPI_BASE = "https://newsapi.org/v2/everything";
-const NEWSAPI_QUERIES = [
-  "TypeScript OR JavaScript OR Python OR Rust OR Go framework release",
-  "AI agents OR LLM tooling OR developer productivity OR coding assistant",
-  "React OR Next.js OR Node.js OR web framework update",
-  "Kubernetes OR Docker OR AWS OR DevOps OR platform engineering",
-];
-
-// ─── Developer relevance scoring ──────────────────────────────────────────────
-const NICHE_KEYWORDS = [
-  // Languages / runtimes
-  "typescript",
-  "javascript",
-  "python",
-  "rust",
-  "golang",
-  "go ",
-  "java",
-  "node",
-  // Frameworks / stacks
-  "react",
-  "next.js",
-  "nextjs",
-  "vue",
-  "angular",
-  "svelte",
-  "spring",
-  "django",
-  "laravel",
-  "vite",
-  // AI / agents
-  "llm",
-  "agent",
-  "agents",
-  "ai",
-  "model",
-  "inference",
-  "prompt",
-  "copilot",
-  "rag",
-  // Dev tooling / architecture
-  "developer tool",
-  "devtools",
-  "sdk",
-  "api",
-  "open source",
-  "github",
-  "release",
-  "changelog",
-  "framework",
-  "runtime",
-  "architecture",
-  "performance",
-  "scalability",
-  "benchmark",
-  "security",
-  "cve",
-  // Cloud / platform engineering
-  "devops",
-  "kubernetes",
-  "docker",
-  "aws",
-  "gcp",
-  "azure",
-  "serverless",
-  "platform engineering",
-  "ci/cd",
-  "software",
-];
 
 @Injectable()
 export class NewsService {
   private readonly newsApiKey: string;
+  private readonly niche: NicheProfile;
 
   constructor(
     private readonly http: HttpService,
@@ -115,6 +22,8 @@ export class NewsService {
   ) {
     this.logger.setContext(NewsService.name);
     this.newsApiKey = this.config.get<string>("app.newsapi.apiKey") ?? "";
+    this.niche = resolveNiche(this.config.get<string>("app.news.niche"));
+    this.logger.log(`News niche: ${this.config.get<string>("app.news.niche") ?? "business-architect"}`);
   }
 
   async fetchTopTechStories(count = 5): Promise<RealNewsItem[]> {
@@ -133,24 +42,29 @@ export class NewsService {
       `Raw items — Reddit: ${redditItems.length} | Google News: ${googleItems.length} | NewsAPI: ${newsApiItems.length}`,
     );
 
-    // Merge, deduplicate by URL, score for developer relevance, sort
+    // Merge, deduplicate, drop items older than 7 days, then rank by:
+    //   relevance × recencyBoost × popularityBoost
+    // This ensures posts are both recent AND engaging — not just one or the other.
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const seen = new Set<string>();
     const merged = [...redditItems, ...googleItems, ...newsApiItems]
       .filter((item) => {
         if (!item.url || seen.has(item.url)) return false;
         seen.add(item.url);
+        if (item.publishedAt && new Date(item.publishedAt).getTime() < cutoff) return false;
         return true;
       })
       .map((item) => ({
         ...item,
         _relevance: this.relevanceScore(item.title),
+        _combined: this.combinedScore(item),
       }))
-      .filter((item) => item._relevance > 0) // must match at least one dev keyword
-      .sort((a, b) => b._relevance - a._relevance || b.score - a.score)
+      .filter((item) => item._relevance > 0)
+      .sort((a, b) => b._combined - a._combined)
       .slice(0, count * 4); // top candidates before article fetch
 
     if (merged.length === 0) {
-      throw new Error("No developer-relevant stories found across all sources");
+      throw new Error("No niche-relevant stories found across all sources");
     }
 
     this.logger.log(
@@ -164,20 +78,31 @@ export class NewsService {
       if (withContent.length >= count) break;
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { _relevance, ...rest } = item as RealNewsItem & {
+      const { _relevance, _combined, ...rest } = item as RealNewsItem & {
         _relevance: number;
+        _combined: number;
       };
+
+      // Reddit self posts already carry their full text — skip scraping entirely
+      if (rest.articleText && rest.articleText.length >= 300) {
+        this.logger.log(`✓ "${item.title}" [${item.source}] — pre-attached content`);
+        withContent.push(rest);
+        continue;
+      }
 
       const articleText = await this.fetchFullArticleText(item.url);
 
       if (articleText) {
         this.logger.log(`✓ "${item.title}" [${item.source}] — full article`);
         withContent.push({ ...rest, articleText });
-      } else if (item.description && item.description.length >= 80) {
+      } else if (item.description && item.description.length >= 300) {
         this.logger.log(
           `✓ "${item.title}" [${item.source}] — using description snippet`,
         );
-        withContent.push({ ...rest, articleText: item.description });
+        withContent.push({
+          ...rest,
+          articleText: `[SUMMARY ONLY — full article unavailable. Base the post strictly on what is written below, do not expand or infer beyond it.]\n\n${item.description}`,
+        });
       } else {
         this.logger.warn(
           `Skipping "${item.title}" — no usable content (scrape failed, no description)`,
@@ -202,7 +127,7 @@ export class NewsService {
 
   private async fetchFromReddit(): Promise<RealNewsItem[]> {
     const results = await Promise.all(
-      TARGET_SUBREDDITS.map((sub) => this.fetchSubredditPosts(sub)),
+      this.niche.subreddits.map((sub) => this.fetchSubredditPosts(sub)),
     );
 
     return results.flat().map((post) => ({
@@ -249,7 +174,7 @@ export class NewsService {
 
   private async fetchFromGoogleNews(): Promise<RealNewsItem[]> {
     const results = await Promise.all(
-      GOOGLE_NEWS_QUERIES.map((q) => this.fetchGoogleNewsQuery(q)),
+      this.niche.googleNewsQueries.map((q) => this.fetchGoogleNewsQuery(q)),
     );
     return results.flat();
   }
@@ -320,7 +245,7 @@ export class NewsService {
     }
 
     const results = await Promise.all(
-      NEWSAPI_QUERIES.map((q) => this.fetchNewsApiQuery(q)),
+      this.niche.newsApiQueries.map((q) => this.fetchNewsApiQuery(q)),
     );
 
     return results.flat();
@@ -342,7 +267,8 @@ export class NewsService {
           params: {
             q: query,
             language: "en",
-            sortBy: "popularity",
+            sortBy: "publishedAt",
+            from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             pageSize: 10,
             apiKey: this.newsApiKey,
           },
@@ -373,7 +299,26 @@ export class NewsService {
 
   private relevanceScore(title: string): number {
     const text = title.toLowerCase();
-    return NICHE_KEYWORDS.filter((kw) => text.includes(kw)).length;
+    return this.niche.keywords.filter((kw) => text.includes(kw)).length;
+  }
+
+  private combinedScore(item: RealNewsItem): number {
+    const relevance = this.relevanceScore(item.title);
+
+    // Recency boost: 1.0 = today, 0.6 = 3 days ago, 0.3 = 7 days ago
+    let recencyBoost = 0.3;
+    if (item.publishedAt) {
+      const ageMs = Date.now() - new Date(item.publishedAt).getTime();
+      const ageDays = ageMs / (24 * 60 * 60 * 1000);
+      if (ageDays <= 1) recencyBoost = 1.0;
+      else if (ageDays <= 3) recencyBoost = 0.6;
+      else if (ageDays <= 5) recencyBoost = 0.4;
+    }
+
+    // Popularity boost from Reddit score + comments (capped to avoid one viral post dominating)
+    const popularityBoost = 1 + Math.min(item.score / 1000, 2) + Math.min((item.commentCount ?? 0) / 200, 1);
+
+    return relevance * recencyBoost * popularityBoost;
   }
 
   private async fetchFullArticleText(url: string): Promise<string | undefined> {
@@ -389,25 +334,65 @@ export class NewsService {
         }),
       );
 
-      const text = this.stripHtml(data);
-      if (text.length < 200) return undefined;
-      return text;
+      // Detect paywall / login walls before wasting Claude tokens on junk
+      if (this.isPaywalled(data)) return undefined;
+
+      const text = this.extractArticleText(data);
+      if (text.length < 300) return undefined;
+      // Cap at ~8000 chars to keep Claude prompt size reasonable
+      return text.slice(0, 8000);
     } catch {
       return undefined;
     }
   }
 
-  private stripHtml(html: string): string {
-    return html
+  private isPaywalled(html: string): boolean {
+    const lower = html.toLowerCase();
+    const signals = [
+      'subscribe to read',
+      'subscribe to continue',
+      'subscribe for full access',
+      'create a free account to continue',
+      'sign in to read',
+      'sign up to read',
+      'this article is for subscribers',
+      'premium content',
+      'members only',
+      'you have used all your free articles',
+      'your free article limit',
+      'unlock this article',
+    ];
+    return signals.some((s) => lower.includes(s));
+  }
+
+  private extractArticleText(html: string): string {
+    // Step 1 — remove entire boilerplate sections before stripping tags
+    const cleaned = html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+      // Navigation, header, footer, sidebar, cookie banners, ads
+      .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+      .replace(/<header[\s\S]*?<\/header>/gi, "")
+      .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+      .replace(/<aside[\s\S]*?<\/aside>/gi, "")
+      .replace(/<figure[\s\S]*?<\/figure>/gi, "")
+      .replace(/<form[\s\S]*?<\/form>/gi, "")
+      // Common boilerplate class/id patterns
+      .replace(/<[^>]*(class|id)="[^"]*?(cookie|banner|popup|modal|subscribe|newsletter|related|sidebar|menu|ad-|advertisement)[^"]*?"[^>]*>[\s\S]*?<\/[a-z]+>/gi, "")
+      // Strip remaining tags
       .replace(/<[^>]+>/g, " ")
+      // Decode entities
       .replace(/&nbsp;/g, " ")
       .replace(/&amp;/g, "&")
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
+      .replace(/&#\d+;/g, " ")
+      // Collapse whitespace
       .replace(/\s{2,}/g, " ")
       .trim();
+
+    return cleaned;
   }
 }

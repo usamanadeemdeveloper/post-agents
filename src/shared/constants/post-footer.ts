@@ -1,5 +1,3 @@
-export const POST_FOOTER = "🤖 Auto-posted via PostAgent — built by Usama Nadeem";
-
 export interface PostFooterOptions {
   agentName?: string;
   author?: string;
@@ -8,12 +6,11 @@ export interface PostFooterOptions {
 }
 
 export function buildPostFooter(options?: PostFooterOptions): string {
-  if (!options) return POST_FOOTER;
-  const agent = options.agentName ?? "PostAgent";
-  const author = options.author ?? "Usama Nadeem";
-  const suffix = options.platform ? ` [${options.platform}]` : "";
-  const ts = options.timestamp ? ` · ${options.timestamp}` : "";
-  return `🤖 Auto-posted via ${agent}${suffix} — built by ${author}${ts}`;
+  const agent = options?.agentName || "PostAgent";
+  const suffix = options?.platform ? ` [${options.platform}]` : "";
+  const ts = options?.timestamp ? ` · ${options.timestamp}` : "";
+  const attribution = options?.author ? ` — built by ${options.author}` : "";
+  return `🤖 Auto-posted via ${agent}${suffix}${attribution}${ts}`;
 }
 
 export function appendPostFooter(content: string, options?: PostFooterOptions): string {
