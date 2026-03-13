@@ -170,8 +170,6 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | `NEWS_STORY_COUNT` | How many stories to fetch per run (1–20) | `10` |
 | `POSTING_STYLE` | Post persona: `business-architect`, `default`, `technical`, `marketing`, `casual` | `default` |
 | `DEFAULT_TONE` | Free-text tone hint injected into every prompt e.g. `"authoritative and client-facing"` | none |
-| `POST_HASHTAGS_LINKEDIN` | Override LinkedIn hashtags e.g. `#Ecommerce #HealthTech #HospitalityTech` | style defaults |
-| `POST_HASHTAGS_TWITTER` | Override Twitter/X hashtags | style defaults |
 | `LINKEDIN_POST_LENGTH` | Override LinkedIn length hint e.g. `800–1100 characters` | style defaults |
 | `TWITTER_POST_LENGTH` | Override Twitter length hint e.g. `200 and 220 characters` | style defaults |
 

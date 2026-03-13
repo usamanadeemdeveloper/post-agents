@@ -1,20 +1,23 @@
 import { PostPromptParams } from './prompt-params.interface';
 
 export function businessArchitectLinkedInPrompt(params: PostPromptParams): string {
-  const { topStory, otherHeadlines, date, hashtags, postLengthHint } = params;
+  const { topStory, otherHeadlines, date, postLengthHint } = params;
   const lengthRule = postLengthHint ?? '750–1000 characters';
-  const hashtagRule = hashtags ?? '#Ecommerce #HealthTech #HospitalityTech #DigitalTransformation #SoftwareDevelopment';
   const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
 
-  return `You are writing a LinkedIn post on behalf of a senior software architect who specialises in building custom software for ecommerce, healthcare, and hospitality businesses.
+  return `You are writing a LinkedIn post on behalf of a senior software architect who BUILDS custom software systems for ecommerce, healthcare, and hospitality businesses. This is their core identity — they design and deliver the technology that solves operational problems in these three industries.
 
-The author's goal is to be seen as a trusted, experienced technology partner by business owners, founders, and investors — not to impress other developers. The audience is: ecommerce founders, healthcare executives, hospitality operators, and investors who evaluate technology as a business capability.
+CRITICAL — every post must reflect this identity:
+- The author is not a commentator or analyst — they are a builder and technology partner
+- Frame every insight from the perspective of: "this is why businesses in [ecommerce/healthcare/hospitality] need better software — and this is what I build to solve it"
+- The closing must always position the author as someone who solves this problem through software, not just someone observing it
+
+The audience is: ecommerce founders, healthcare executives, hospitality operators, and investors evaluating technology capabilities.
 
 The tone must be:
-- Authoritative but accessible: the author understands both technology and business
-- Outcome-focused: always connect technology to a business result (revenue, efficiency, patient outcomes, guest experience)
-- Credible: demonstrate deep domain knowledge in ecommerce, healthcare, or hospitality
-- Client-facing: the author is positioning themselves as someone you'd hire or partner with
+- Authoritative: the author has built these systems and knows the trade-offs
+- Outcome-focused: connect every technology point to a business result
+- Client-facing: the reader should think "this person understands my industry and could build this for us"
 
 Write ONLY from what you read below — never add facts not present in the content.
 
@@ -33,32 +36,30 @@ Write a LinkedIn post using this EXACT structure:
 
 💡 Industry Insight — ${date}
 
-[Hook: one sharp sentence on what this means for businesses in ecommerce, healthcare, or hospitality — frame it as a business challenge or opportunity, not a tech problem]
+[Hook: one sharp sentence naming the specific operational problem this creates for ecommerce, healthcare, or hospitality businesses — make it concrete, not generic]
 
-[Body: 2 sentences explaining what is changing and the direct business impact. Speak to operators and decision-makers, not engineers. Ground every claim in the content above.]
+[Body: 2 sentences explaining what is happening and what it means for operations or software in these verticals. Every claim must come from the content above.]
 
 What this means for your business:
-• [Operational or revenue impact for companies in these verticals]
-• [Risk of falling behind or cost of inaction]
-• [What businesses that act on this now will gain]
+• [Specific operational or software integration impact for companies in these verticals]
+• [Risk or cost of inaction — what breaks or falls behind without the right systems]
+• [What the author builds or architects to solve exactly this problem]
 
-[Closing: a genuine question inviting business owners or decision-makers to reflect on how ready their operations are — position yourself as someone who solves this]
+[Closing: a direct question that positions the author as someone who solves this — e.g. "If your [ecommerce/healthcare/hospitality] platform isn't built to handle this, let's talk."]
 
 Source: ${topStory.url}
-
-#Ecommerce #HealthTech #HospitalityTech
 
 STRICT RULES:
 - Every fact must come from the content above — nothing invented
 - Total post length: ${lengthRule}
-- Hashtags: use these — ${hashtagRule}
+- The post MUST be clearly about software/technology in ecommerce, healthcare, or hospitality — if the article is only tangentially related, anchor it back to one of these three industries explicitly
+- Hashtags: generate 6–10 hashtags that are highly relevant to the actual article topic, the specific industry mentioned, and the software/technology angle. Mix broad reach tags (#SoftwareDevelopment #DigitalTransformation) with specific topic tags (#Ecommercetech #HealthcareIT #HospitalityTech #AIIntegration etc). Place them at the end of the post.
 - Output ONLY the post text`;
 }
 
 export function businessArchitectTwitterPrompt(params: PostPromptParams): string {
-  const { topStory, date, hashtags, postLengthHint } = params;
+  const { topStory, date, postLengthHint } = params;
   const lengthRule = postLengthHint ?? '200 and 240 characters';
-  const hashtagRule = hashtags ?? '#Ecommerce #HealthTech #HospitalityTech #DigitalTransformation #RetailTech';
   const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
 
   return `You are writing a tweet on behalf of a software architect who builds custom software for ecommerce, healthcare, and hospitality businesses. The audience is founders, operators, and investors in those industries — not developers.
@@ -79,7 +80,7 @@ STRICT RULES:
 - Start with "💡 ${date} —" then your insight
 - The full tweet text (before the URL line) must be between ${lengthRule} including the date prefix
 - Add the source URL on the last line: ${topStory.url}
-- Hashtags: use these — ${hashtagRule}
+- Hashtags: generate 3–5 hashtags relevant to the actual article topic and industry — place them at the end
 - Every claim must come from the article — do not invent
 - Output ONLY the tweet text and URL, nothing else`;
 }

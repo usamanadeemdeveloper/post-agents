@@ -130,8 +130,6 @@ jobs:
           NEWS_STORY_COUNT: ${{ secrets.NEWS_STORY_COUNT }}
           POST_AUTHOR_NAME: ${{ secrets.POST_AUTHOR_NAME }}
           POST_AGENT_NAME: ${{ secrets.POST_AGENT_NAME }}
-          POST_HASHTAGS_LINKEDIN: ${{ secrets.POST_HASHTAGS_LINKEDIN }}
-          POST_HASHTAGS_TWITTER: ${{ secrets.POST_HASHTAGS_TWITTER }}
           LINKEDIN_POST_LENGTH: ${{ secrets.LINKEDIN_POST_LENGTH }}
           TWITTER_POST_LENGTH: ${{ secrets.TWITTER_POST_LENGTH }}
 
