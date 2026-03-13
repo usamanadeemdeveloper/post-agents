@@ -26,6 +26,9 @@ export const configValidationSchema = Joi.object({
 
   // Scheduler
   CRON_SCHEDULE: Joi.string().default("0 9 */3 * *"),
+  POST_VARIATION_SEED: Joi.string().allow("").optional(),
+  POST_HISTORY_FILE: Joi.string().allow("").optional(),
+  CONTENT_SIMILARITY_THRESHOLD: Joi.number().min(0).max(1).default(0.8),
 
   // Prompt configuration
   POSTING_STYLE: Joi.string()
