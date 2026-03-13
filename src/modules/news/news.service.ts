@@ -90,11 +90,11 @@ export class NewsService {
         continue;
       }
 
-      const articleText = await this.fetchFullArticleText(item.url);
+      const fetched = await this.fetchFullArticleText(item.url);
 
-      if (articleText) {
+      if (fetched) {
         this.logger.log(`✓ "${item.title}" [${item.source}] — full article`);
-        withContent.push({ ...rest, articleText });
+        withContent.push({ ...rest, articleText: fetched.text, url: fetched.resolvedUrl });
       } else if (item.description && item.description.length >= 300) {
         this.logger.log(
           `✓ "${item.title}" [${item.source}] — using description snippet`,
@@ -321,9 +321,9 @@ export class NewsService {
     return relevance * recencyBoost * popularityBoost;
   }
 
-  private async fetchFullArticleText(url: string): Promise<string | undefined> {
+  private async fetchFullArticleText(url: string): Promise<{ text: string; resolvedUrl: string } | undefined> {
     try {
-      const { data } = await firstValueFrom(
+      const response = await firstValueFrom(
         this.http.get<string>(url, {
           timeout: 10000,
           headers: {
@@ -334,13 +334,17 @@ export class NewsService {
         }),
       );
 
-      // Detect paywall / login walls before wasting Claude tokens on junk
-      if (this.isPaywalled(data)) return undefined;
+      // Capture the final URL after redirects (handles Google News CBMi... redirect URLs)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resolvedUrl: string = (response.request as any)?.res?.responseUrl || url;
 
-      const text = this.extractArticleText(data);
+      // Detect paywall / login walls before wasting Claude tokens on junk
+      if (this.isPaywalled(response.data)) return undefined;
+
+      const text = this.extractArticleText(response.data);
       if (text.length < 300) return undefined;
       // Cap at ~8000 chars to keep Claude prompt size reasonable
-      return text.slice(0, 8000);
+      return { text: text.slice(0, 8000), resolvedUrl };
     } catch {
       return undefined;
     }

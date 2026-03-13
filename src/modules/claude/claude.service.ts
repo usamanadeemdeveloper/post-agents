@@ -54,7 +54,7 @@ export class ClaudeService implements OnModuleInit {
 
     const prompt = resolvePrompt("linkedin", { topStory, otherHeadlines, date, tone, postLengthHint }, style);
 
-    const response = await this.ask({ prompt, maxTokens: 600 });
+    const response = await this.ask({ prompt, maxTokens: 1024 });
     const content = response.content.trim();
     const footerOpts = this.authorName || this.agentName
       ? { author: this.authorName || undefined, agentName: this.agentName || undefined }
