@@ -44,7 +44,6 @@ export class ClaudeService implements OnModuleInit {
 
     const style = this.config.get<PostingStyle>("app.prompts.postingStyle", "default");
     const tone = this.config.get<string>("app.prompts.defaultTone", "");
-    const hashtags = this.config.get<string>("app.prompts.hashtagsLinkedIn") || undefined;
     const postLengthHint = this.config.get<string>("app.prompts.linkedInPostLength") || undefined;
 
     const topStory = stories[0];
@@ -53,7 +52,7 @@ export class ClaudeService implements OnModuleInit {
       .map((s, i) => `${i + 2}. "${s.title}" (${s.source})`)
       .join("\n");
 
-    const prompt = resolvePrompt("linkedin", { topStory, otherHeadlines, date, tone, hashtags, postLengthHint }, style);
+    const prompt = resolvePrompt("linkedin", { topStory, otherHeadlines, date, tone, postLengthHint }, style);
 
     const response = await this.ask({ prompt, maxTokens: 600 });
     const content = response.content.trim();
@@ -71,13 +70,12 @@ export class ClaudeService implements OnModuleInit {
 
     const style = this.config.get<PostingStyle>("app.prompts.postingStyle", "default");
     const tone = this.config.get<string>("app.prompts.defaultTone", "");
-    const hashtags = this.config.get<string>("app.prompts.hashtagsTwitter") || undefined;
     const postLengthHint = this.config.get<string>("app.prompts.twitterPostLength") || undefined;
 
     const topStory = stories[0];
     const otherHeadlines = "";
 
-    const prompt = resolvePrompt("twitter", { topStory, otherHeadlines, date, tone, hashtags, postLengthHint }, style);
+    const prompt = resolvePrompt("twitter", { topStory, otherHeadlines, date, tone, postLengthHint }, style);
 
     const response = await this.ask({ prompt, maxTokens: 200 });
     const content = response.content.trim();

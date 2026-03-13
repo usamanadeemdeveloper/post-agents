@@ -38,8 +38,6 @@ export const configValidationSchema = Joi.object({
   POST_AUTHOR_NAME: Joi.string().allow("").optional(),
   POST_AGENT_NAME: Joi.string().allow("").optional(),
   NEWS_STORY_COUNT: Joi.number().integer().min(1).max(20).optional(),
-  POST_HASHTAGS_LINKEDIN: Joi.string().allow("").optional(),
-  POST_HASHTAGS_TWITTER: Joi.string().allow("").optional(),
   LINKEDIN_POST_LENGTH: Joi.string().allow("").optional(),
   TWITTER_POST_LENGTH: Joi.string().allow("").optional(),
 
