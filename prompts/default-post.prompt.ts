@@ -1,7 +1,9 @@
 import { PostPromptParams } from './prompt-params.interface';
 
 export function defaultLinkedInPrompt(params: PostPromptParams): string {
-  const { topStory, otherHeadlines, date } = params;
+  const { topStory, otherHeadlines, date, hashtags, postLengthHint } = params;
+  const lengthRule = postLengthHint ?? '700–950 characters';
+  const hashtagRule = hashtags ?? '#SoftwareEngineering #DevTools #AIEngineering #WebDevelopment #Programming';
   const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
 
   return `You are writing a LinkedIn post on behalf of a senior software engineer sharing practical insights with developers, engineering leads, and technical founders.
@@ -46,13 +48,15 @@ Source: ${topStory.url}
 
 STRICT RULES:
 - Every fact must come from the content above — nothing invented
-- Total post length: 700–950 characters
-- Hashtags: exactly 3 total, choose from #SoftwareEngineering #DevTools #AIEngineering #WebDevelopment #Programming
+- Total post length: ${lengthRule}
+- Hashtags: use these — ${hashtagRule}
 - Output ONLY the post text`;
 }
 
 export function defaultTwitterPrompt(params: PostPromptParams): string {
-  const { topStory, date } = params;
+  const { topStory, date, hashtags, postLengthHint } = params;
+  const lengthRule = postLengthHint ?? '200 and 240 characters';
+  const hashtagRule = hashtags ?? '#SoftwareEngineering #DevTools #AIEngineering #WebDevelopment #Programming';
   const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
 
   return `You are writing a tweet on behalf of a senior engineer sharing practical updates for developers and builders.
@@ -71,9 +75,9 @@ Write ONE tweet that shares a sharp developer insight from this topic.
 
 STRICT RULES:
 - Start with "🛠️ ${date} —" then your insight
-- The full tweet text (before the URL line) must be between 200 and 240 characters including the date prefix
+- The full tweet text (before the URL line) must be between ${lengthRule} including the date prefix
 - Add the source URL on the last line: ${topStory.url}
-- Include exactly 2 hashtags from: #SoftwareEngineering #DevTools #AIEngineering #WebDevelopment #Programming
+- Hashtags: use these — ${hashtagRule}
 - Every claim must come from the article — do not invent
 - Output ONLY the tweet text and URL, nothing else`;
 }

@@ -41,5 +41,24 @@ export default registerAs("app", () => ({
     postingStyle: process.env.POSTING_STYLE ?? 'default',
     defaultTone: process.env.DEFAULT_TONE ?? '',
     promptVersion: process.env.PROMPT_VERSION ?? '',
+    hashtagsLinkedIn: process.env.POST_HASHTAGS_LINKEDIN || '',
+    hashtagsTwitter: process.env.POST_HASHTAGS_TWITTER || '',
+    linkedInPostLength: process.env.LINKEDIN_POST_LENGTH || '',
+    twitterPostLength: process.env.TWITTER_POST_LENGTH || '',
+  },
+
+  post: {
+    authorName: process.env.POST_AUTHOR_NAME || '',
+    agentName: process.env.POST_AGENT_NAME || '',
+  },
+
+  news: {
+    niche: process.env.NEWS_NICHE ?? 'business-architect',
+    storyCount: (() => {
+      const raw = process.env.NEWS_STORY_COUNT;
+      if (!raw) return 10;
+      const parsed = parseInt(raw, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
+    })(),
   },
 }));
