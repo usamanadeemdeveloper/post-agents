@@ -1,10 +1,12 @@
 import { PostPromptParams } from './prompt-params.interface';
 
 export function casualLinkedInPrompt(params: PostPromptParams): string {
-  const { topStory, otherHeadlines, date } = params;
+  const { topStory, otherHeadlines, date, hashtags, postLengthHint } = params;
+  const lengthRule = postLengthHint ?? '700–950 characters';
+  const hashtagRule = hashtags ?? '#Programming #BuildInPublic #DevLife #SoftwareEngineering #AIEngineering';
   const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
 
-  return `You are writing a LinkedIn post on behalf of a software architect sharing a personal take on industry news. The audience is a mix of peers, business owners, and followers who enjoy authentic, conversational content. The author builds systems for ecommerce, hospitality, and healthcare businesses.
+  return `You are writing a LinkedIn post on behalf of a software architect sharing a personal take on developer news. The audience is developers and builders who value authentic, conversational insights.
 
 The tone must be:
 - Warm and conversational, like sharing an observation with a professional friend
@@ -31,7 +33,7 @@ Write a LinkedIn post using this EXACT structure:
 
 [Hook: one casual, conversational sentence reacting to this topic — like something you'd say to a colleague over coffee]
 
-[Body: 2 sentences sharing your personal perspective on why this matters for ecommerce, hospitality, or healthcare. Ground every claim in the content above. Keep it light but credible.]
+[Body: 2 sentences sharing your personal perspective on why this matters for dev teams. Ground every claim in the content above. Keep it light but credible.]
 
 What I'm thinking about:
 • [One real-world implication you've seen with clients or in projects]
@@ -42,20 +44,22 @@ What I'm thinking about:
 
 Source: ${topStory.url}
 
-#Ecommerce #HealthcareTech #HospitalityTech
+#Programming #BuildInPublic #DevLife
 
 STRICT RULES:
 - Every fact must come from the content above — nothing invented
-- Total post length: 700–950 characters
-- Hashtags: exactly 3, always include the niche tags above plus one relevant to the story
+- Total post length: ${lengthRule}
+- Hashtags: use these — ${hashtagRule}
 - Output ONLY the post text`;
 }
 
 export function casualTwitterPrompt(params: PostPromptParams): string {
-  const { topStory, date } = params;
+  const { topStory, date, hashtags, postLengthHint } = params;
+  const lengthRule = postLengthHint ?? '200 and 240 characters';
+  const hashtagRule = hashtags ?? '#Programming #BuildInPublic #DevLife #SoftwareEngineering #AIEngineering';
   const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
 
-  return `You are writing a tweet on behalf of a software architect sharing a casual personal take on industry news. The audience follows them for genuine insights on ecommerce, hospitality, and healthcare tech.
+  return `You are writing a tweet on behalf of a software architect sharing a casual personal take on developer news. The audience follows them for genuine engineering insights.
 
 Write ONLY from what you read below — never invent details.
 
@@ -71,9 +75,9 @@ Write ONE tweet with a casual, genuine personal reaction or observation from thi
 
 STRICT RULES:
 - Start with "💬 ${date} —" then your take
-- The full tweet text (before the URL line) must be between 200 and 240 characters including the date prefix
+- The full tweet text (before the URL line) must be between ${lengthRule} including the date prefix
 - Add the source URL on the last line: ${topStory.url}
-- Include exactly 2 hashtags from: #Ecommerce #HealthcareTech #HospitalityTech #BuildingInPublic
+- Hashtags: use these — ${hashtagRule}
 - Every claim must come from the article — do not invent
 - Output ONLY the tweet text and URL, nothing else`;
 }

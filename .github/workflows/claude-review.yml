@@ -13,6 +13,8 @@ permissions:
 
 jobs:
   review:
+    # Disabled by setting ENABLE_PR_REVIEW secret to 'false'
+    if: ${{ secrets.ENABLE_PR_REVIEW != 'false' }}
     runs-on: ubuntu-latest
 
     permissions:

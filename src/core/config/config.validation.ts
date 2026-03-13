@@ -25,11 +25,26 @@ export const configValidationSchema = Joi.object({
   TWITTER_ACCESS_SECRET: Joi.string().allow("").optional(),
 
   // Scheduler
-  CRON_SCHEDULE: Joi.string().default("0 9 */3 * *"),
+  CRON_SCHEDULE: Joi.string().default("0 9 * * *"),
+  POST_VARIATION_SEED: Joi.string().allow("").optional(),
+  POST_HISTORY_FILE: Joi.string().allow("").optional(),
+  CONTENT_SIMILARITY_THRESHOLD: Joi.number().min(0).max(1).default(0.8),
 
   // Prompt configuration
+  NEWS_NICHE: Joi.string()
+    .valid("business-architect", "developer")
+    .default("business-architect"),
+
+  POST_AUTHOR_NAME: Joi.string().allow("").optional(),
+  POST_AGENT_NAME: Joi.string().allow("").optional(),
+  NEWS_STORY_COUNT: Joi.number().integer().min(1).max(20).optional(),
+  POST_HASHTAGS_LINKEDIN: Joi.string().allow("").optional(),
+  POST_HASHTAGS_TWITTER: Joi.string().allow("").optional(),
+  LINKEDIN_POST_LENGTH: Joi.string().allow("").optional(),
+  TWITTER_POST_LENGTH: Joi.string().allow("").optional(),
+
   POSTING_STYLE: Joi.string()
-    .valid("default", "technical", "marketing", "casual")
+    .valid("default", "technical", "marketing", "casual", "business-architect")
     .default("default"),
   DEFAULT_TONE: Joi.string().allow("").optional(),
   PROMPT_VERSION: Joi.string().allow("").optional(),

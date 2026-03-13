@@ -15,6 +15,8 @@ import { appendPostFooter } from "../../shared/constants/post-footer";
 export class ClaudeService implements OnModuleInit {
   private client: Anthropic;
   private model: string;
+  private authorName: string;
+  private agentName: string = '';
 
   constructor(
     private readonly config: ConfigService,
@@ -28,6 +30,9 @@ export class ClaudeService implements OnModuleInit {
       apiKey: this.config.get<string>("app.anthropic.apiKey"),
     });
     this.model = this.config.get<string>("app.anthropic.model")!;
+    this.authorName = this.config.get<string>("app.post.authorName") || '';
+    const agentName = this.config.get<string>("app.post.agentName") || '';
+    if (agentName) this.agentName = agentName;
     this.logger.log(`Claude client initialized with model: ${this.model}`);
   }
 
@@ -39,6 +44,8 @@ export class ClaudeService implements OnModuleInit {
 
     const style = this.config.get<PostingStyle>("app.prompts.postingStyle", "default");
     const tone = this.config.get<string>("app.prompts.defaultTone", "");
+    const hashtags = this.config.get<string>("app.prompts.hashtagsLinkedIn") || undefined;
+    const postLengthHint = this.config.get<string>("app.prompts.linkedInPostLength") || undefined;
 
     const topStory = stories[0];
     const otherHeadlines = stories
@@ -46,10 +53,14 @@ export class ClaudeService implements OnModuleInit {
       .map((s, i) => `${i + 2}. "${s.title}" (${s.source})`)
       .join("\n");
 
-    const prompt = resolvePrompt("linkedin", { topStory, otherHeadlines, date, tone }, style);
+    const prompt = resolvePrompt("linkedin", { topStory, otherHeadlines, date, tone, hashtags, postLengthHint }, style);
 
     const response = await this.ask({ prompt, maxTokens: 600 });
-    return appendPostFooter(response.content.trim());
+    const content = response.content.trim();
+    const footerOpts = this.authorName || this.agentName
+      ? { author: this.authorName || undefined, agentName: this.agentName || undefined }
+      : undefined;
+    return footerOpts ? appendPostFooter(content, footerOpts) : content;
   }
 
   async generateTwitterPost(
@@ -60,14 +71,20 @@ export class ClaudeService implements OnModuleInit {
 
     const style = this.config.get<PostingStyle>("app.prompts.postingStyle", "default");
     const tone = this.config.get<string>("app.prompts.defaultTone", "");
+    const hashtags = this.config.get<string>("app.prompts.hashtagsTwitter") || undefined;
+    const postLengthHint = this.config.get<string>("app.prompts.twitterPostLength") || undefined;
 
     const topStory = stories[0];
     const otherHeadlines = "";
 
-    const prompt = resolvePrompt("twitter", { topStory, otherHeadlines, date, tone }, style);
+    const prompt = resolvePrompt("twitter", { topStory, otherHeadlines, date, tone, hashtags, postLengthHint }, style);
 
     const response = await this.ask({ prompt, maxTokens: 200 });
-    return appendPostFooter(response.content.trim());
+    const content = response.content.trim();
+    const footerOpts = this.authorName || this.agentName
+      ? { author: this.authorName || undefined, agentName: this.agentName || undefined }
+      : undefined;
+    return footerOpts ? appendPostFooter(content, footerOpts) : content;
   }
 
   private async ask(
