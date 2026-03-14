@@ -65,6 +65,7 @@ export class ClaudeService implements OnModuleInit {
     const style = this.resolvePostingStyle();
     const tone = this.config.get<string>("app.prompts.defaultTone", "");
     const grounding = await this.buildStoryGrounding(topStory);
+    this.assertNicheFit(topStory, grounding);
     const factualAnchors = this.formatGroundingAnchors(grounding);
 
     const [linkedInContent, tweetContent] = await Promise.all([
@@ -283,6 +284,37 @@ ${story.articleText ?? ""}`;
     return lines.join("\n");
   }
 
+  private assertNicheFit(story: RealNewsItem, grounding: StoryGrounding): void {
+    const niche = this.config.get<string>("app.news.niche")?.trim() ?? "business-architect";
+    if (niche !== "business-architect") return;
+
+    const text = [
+      story.title,
+      story.articleText ?? "",
+      grounding.productOrFeature,
+      grounding.businessProblem,
+      grounding.whyNow,
+    ].join(" ").toLowerCase();
+
+    const verticalHits = this.countOccurrences(text, [
+      "ecommerce", "e-commerce", "retail", "merchant", "shopify", "marketplace",
+      "healthcare", "hospital", "clinic", "patient", "digital health",
+      "hospitality", "hotel", "restaurant", "guest", "reservation",
+    ]);
+    const techHits = this.countOccurrences(text, [
+      "software", "platform", "integration", "api", "automation", "system",
+      "saas", "cloud", "data", "digital", "ehr", "emr", "portal", "workflow",
+      "booking engine", "property management system", "pms", "architecture",
+      "infrastructure",
+    ]);
+
+    if (verticalHits === 0 || techHits === 0) {
+      throw new Error(
+        `Story does not match the ${niche} niche after grounding validation`,
+      );
+    }
+  }
+
   private async reviewGeneratedPost(
     platform: "linkedin" | "twitter",
     story: RealNewsItem,
@@ -413,5 +445,9 @@ ${response.content}`,
     }
 
     return JSON.parse(candidate.slice(start, end + 1)) as T;
+  }
+
+  private countOccurrences(text: string, terms: string[]): number {
+    return terms.filter((term) => text.includes(term)).length;
   }
 }

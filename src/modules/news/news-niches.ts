@@ -1,6 +1,7 @@
 export type NewsNiche = 'business-architect' | 'developer';
 
 export interface NicheProfile {
+  name: NewsNiche;
   subreddits: string[];
   googleNewsQueries: string[];
   newsApiQueries: string[];
@@ -11,6 +12,7 @@ export interface NicheProfile {
 
 const NICHES: Record<NewsNiche, NicheProfile> = {
   'business-architect': {
+    name: 'business-architect',
     subreddits: [
       'ecommerce',
       'shopify',
@@ -58,6 +60,7 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
   },
 
   developer: {
+    name: 'developer',
     subreddits: [
       'programming', 'softwarearchitecture', 'webdev', 'javascript', 'typescript',
       'reactjs', 'nextjs', 'node', 'devops', 'aws', 'machinelearning', 'artificial',
