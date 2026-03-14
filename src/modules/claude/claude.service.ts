@@ -407,6 +407,7 @@ Rules:
 - Reject the draft if any named feature, company, statistic, causal claim, or business claim is not supported by the article
 - Reject the draft if it omits required must-mention phrases when they exist
 - If the draft is weak but salvageable, rewrite it into "correctedPost" so every claim is supported
+- The final post must be in clear natural English only
 - Preserve the platform format and source URL requirement
 - Output JSON only
 
@@ -454,6 +455,7 @@ Rules:
 - Keep the output appropriate for ${platform}
 - Keep the article's actual angle
 - Do not add unsupported claims
+- Write in clear natural English only
 - Keep the source URL requirement intact
 - Output only the revised post text
 

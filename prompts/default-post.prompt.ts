@@ -17,6 +17,7 @@ The tone must be:
 - Opinionated but balanced: mention trade-offs, not just upside
 
 Write ONLY from what you read below — never add names, numbers, or claims not present in the content.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S TRENDING TOPIC:
 Title: ${topStory.title}
@@ -68,6 +69,7 @@ export function defaultTwitterPrompt(params: PostPromptParams): string {
   return `You are writing a tweet on behalf of a senior engineer sharing practical updates for developers and builders.
 
 Write ONLY from what you read below — never invent details.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S DATE: ${date}
 Title: ${topStory.title}

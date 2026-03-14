@@ -22,6 +22,7 @@ The tone must be:
 - Client-facing: the reader should think "this person understands my industry and could build this for us"
 
 Write ONLY from what you read below — never add facts not present in the content.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S TRENDING TOPIC:
 Title: ${topStory.title}
@@ -80,6 +81,7 @@ export function businessArchitectTwitterPrompt(params: PostPromptParams): string
   return `You are writing a tweet on behalf of a software architect who builds custom software for ecommerce, healthcare, and hospitality businesses. The audience is founders, operators, and investors in those industries — not developers.
 
 Write ONLY from what you read below — never invent details.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S DATE: ${date}
 Title: ${topStory.title}
