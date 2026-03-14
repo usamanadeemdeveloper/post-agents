@@ -31,6 +31,9 @@ async function run() {
       `Twitter  : ${tw.success ? `✓ post ID ${tw.postId}` : `✗ ${tw.error}`}`,
     );
 
+    const anyPublished = li.success || tw.success;
+    console.log(`PUBLISHED_ANY=${anyPublished ? "true" : "false"}`);
+
     // By default we soft-fail publish errors so the agent run still completes.
     const failOnPublishFailure =
       config.get<boolean>("app.scheduler.failOnPublishFailure") ?? false;

@@ -113,7 +113,16 @@ jobs:
 
       - name: Run post pipeline
         if: steps.interval.outputs.should_run == 'true'
-        run: npm run trigger
+        id: post_run
+        run: |
+          set -o pipefail
+          npm run trigger | tee post-run.log
+
+          if grep -q "PUBLISHED_ANY=true" post-run.log; then
+            echo "published_any=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published_any=false" >> "$GITHUB_OUTPUT"
+          fi
         env:
           NODE_ENV: production
           NODE_OPTIONS: '--enable-source-maps'
@@ -142,7 +151,7 @@ jobs:
           TWITTER_POST_LENGTH: ${{ secrets.TWITTER_POST_LENGTH }}
 
       - name: Persist run state
-        if: steps.interval.outputs.should_run == 'true'
+        if: steps.interval.outputs.should_run == 'true' && steps.post_run.outcome == 'success' && steps.post_run.outputs.published_any == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
