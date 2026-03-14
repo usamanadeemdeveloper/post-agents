@@ -7,6 +7,7 @@ import { ClaudeService } from "../claude/claude.service";
 import { LinkedInService } from "../linkedin/linkedin.service";
 import { TwitterService } from "../twitter/twitter.service";
 import { NewsService } from "../news/news.service";
+import { SlackService } from "../slack/slack.service";
 import { RealNewsItem } from "../news/interfaces/news-item.interface";
 import { buildPostFooter } from "../../shared/constants/post-footer";
 import { AppLoggerService } from "../../core/logger/logger.service";
@@ -54,6 +55,7 @@ export class SchedulerService {
     private readonly claude: ClaudeService,
     private readonly linkedin: LinkedInService,
     private readonly twitter: TwitterService,
+    private readonly slack: SlackService,
     private readonly config: ConfigService,
     private readonly logger: AppLoggerService,
   ) {
@@ -165,7 +167,32 @@ export class SchedulerService {
       `Primary story for this run: "${chosenStory.title}" (${chosenStory.source})`,
     );
 
-    // Step 3 — publish to whichever platforms are configured
+    // Step 3 — Slack approval gate (skipped if Slack is not configured)
+    if (this.slack.enabled) {
+      const niche = this.config.get<string>("app.news.niche") ?? "business-architect";
+      const { ts } = await this.slack.postForApproval({
+        niche,
+        linkedInContent,
+        tweetContent,
+      });
+      const approval = await this.slack.waitForApproval(ts);
+      if (approval !== "approved") {
+        this.logger.log(`Publish aborted — Slack approval ${approval}`);
+        const aborted: SocialPostResult = {
+          platform: "linkedin",
+          success: false,
+          error: `slack:${approval}`,
+          postedAt: runAt,
+        };
+        return {
+          runAt,
+          linkedinResult: { ...aborted, platform: "linkedin" },
+          twitterResult: { ...aborted, platform: "twitter" },
+        };
+      }
+    }
+
+    // Step 4 — publish to whichever platforms are configured
     const skipped: SocialPostResult = {
       platform: "linkedin",
       success: false,

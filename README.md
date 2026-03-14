@@ -34,6 +34,12 @@ If live discovery fails:
   ├── Use curated evergreen source packs
   └── If Claude generation still fails, use deterministic fallback post text
         ↓
+If SLACK_BOT_TOKEN + SLACK_CHANNEL_ID are set:
+  └── Post preview to Slack with niche label + full post text
+      └── Wait for ✅ reaction (up to SLACK_APPROVAL_TIMEOUT_MINUTES)
+          ├── ✅ received → proceed to publish
+          └── No reaction / timeout → abort run
+        ↓
 Publish to configured platforms in parallel:
   ├── LinkedIn  (UGC Posts API)  — if credentials set
   └── X/Twitter (twitter-api-v2) — if credentials set
@@ -90,7 +96,70 @@ Copy the `sub` value → your URN is `urn:li:person:THAT_VALUE` → `LINKEDIN_PE
 
 ---
 
-### 4. Twitter / X — optional
+### 4. Slack approval gate — optional
+
+Skip this section if you want posts to publish automatically without any review step.
+
+When enabled, the pipeline sends a full post preview to your Slack channel before publishing. You react with ✅ to approve. No reaction within the timeout = run aborts without posting.
+
+**Step 1 — Create a Slack App**
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) — sign in with the account that owns your workspace
+2. Click **Create New App** → **From scratch**
+3. Enter a name (e.g. `PostAgent`), select your workspace from the dropdown → **Create App**
+
+**Step 2 — Add Bot Token Scopes**
+1. In the left sidebar click **OAuth & Permissions**
+2. Scroll down to **Scopes** → **Bot Token Scopes** → click **Add an OAuth Scope**
+3. Add these two scopes one at a time:
+   - `chat:write` — lets the bot post messages
+   - `reactions:read` — lets the bot read emoji reactions on its messages
+
+**Step 3 — Install the app to your workspace**
+1. Scroll back up on the same **OAuth & Permissions** page
+2. Click **Install to Workspace** → **Allow**
+3. You are taken back to the same page — copy the **Bot User OAuth Token** (starts with `xoxb-`) → this is your `SLACK_BOT_TOKEN`
+
+> ⚠️ If you add scopes after the initial install, Slack will show a yellow banner saying the app needs to be reinstalled. Click **reinstall your app** in that banner, allow again, then copy the fresh token.
+
+**Step 4 — Invite the bot to your channel**
+1. In Slack, open the channel where you want previews to appear (or create a new private one e.g. `#post-approvals`)
+2. Type `/invite @PostAgent` (replace with whatever name you gave your app) and press Enter
+3. Slack will confirm the bot was added to the channel
+
+> If `/invite` doesn't autocomplete your bot name, go to the channel → click the channel name at the top → **Integrations** tab → **Add an App** → search for your app name.
+
+**Step 5 — Get the Channel ID**
+
+**Desktop app:**
+1. Right-click the channel name in the sidebar → **View channel details**
+2. Scroll to the very bottom of the details panel — you will see the **Channel ID** (e.g. `C08XXXXXXXX`) → copy it
+
+**Browser:**
+1. Open the channel in your browser
+2. Look at the URL — it looks like `https://app.slack.com/client/TXXXXXXXX/CXXXXXXXXXX`
+3. The last segment after the final `/` is your Channel ID (starts with `C`) → copy it → this is your `SLACK_CHANNEL_ID`
+
+**Step 6 — Add secrets to GitHub**
+
+Go to your repo → **Settings → Secrets and variables → Actions** and add:
+
+| Secret | Value |
+|---|---|
+| `SLACK_BOT_TOKEN` | The `xoxb-...` token from Step 3 |
+| `SLACK_CHANNEL_ID` | The `C...` channel ID from Step 5 |
+
+That's it. The two optional secrets below have sensible defaults:
+
+| Secret | Description | Default |
+|---|---|---|
+| `SLACK_APPROVE_EMOJI` | Emoji name to react with (no colons) | `white_check_mark` (✅) |
+| `SLACK_APPROVAL_TIMEOUT_MINUTES` | How long to wait before aborting (max 360) | `360` |
+
+> **Billing note:** The GitHub Actions job stays alive while waiting for your reaction. On **public repos** this is completely free. On **private repos** minutes are billed — set `SLACK_APPROVAL_TIMEOUT_MINUTES` to a realistic window like `60` or `120` to avoid burning through your free quota.
+
+---
+
+### 5. Twitter / X — optional
 
 **Step 1 — Create a developer app**
 1. Go to [developer.twitter.com/en/portal/dashboard](https://developer.twitter.com/en/portal/dashboard)
@@ -203,6 +272,17 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | `TWITTER_ACCESS_TOKEN` | Twitter Access Token |
 | `TWITTER_ACCESS_SECRET` | Twitter Access Token Secret |
 
+#### Slack approval gate (optional)
+
+| Secret | Description | Default |
+|---|---|---|
+| `SLACK_BOT_TOKEN` | Bot User OAuth Token from your Slack app (`xoxb-...`) | no approval gate |
+| `SLACK_CHANNEL_ID` | Channel ID where previews are posted (`C...`) | — |
+| `SLACK_APPROVE_EMOJI` | Emoji name to react with for approval (no colons) | `white_check_mark` |
+| `SLACK_APPROVAL_TIMEOUT_MINUTES` | How long to wait for your reaction before aborting (max 360) | `360` |
+
+> Both `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` must be set to enable the approval gate. If either is missing, posts publish immediately as before.
+
 #### Advanced
 
 | Secret | Description | Default |
@@ -287,6 +367,18 @@ Set the `POST_INTERVAL_DAYS` GitHub Secret to any number of days. No code change
 
 **Workflow ran but no post was made**
 → `POST_INTERVAL_DAYS` has not elapsed since the last post. Check `.last-post-date` in the repo, or trigger manually with `force=true`.
+
+**Slack preview sent but job timed out without publishing**
+→ You didn't react with ✅ within `SLACK_APPROVAL_TIMEOUT_MINUTES`. The run aborted intentionally. Trigger manually with `force=true` if you still want to post.
+
+**`Slack chat.postMessage failed: not_in_channel`**
+→ The bot hasn't been invited to your channel. In Slack, type `/invite @YourBotName` in the target channel.
+
+**`Slack chat.postMessage failed: invalid_auth`**
+→ `SLACK_BOT_TOKEN` is wrong or expired. Regenerate from your app's **OAuth & Permissions** page.
+
+**Slack bot posts the message but reactions are never detected**
+→ Check that `SLACK_APPROVE_EMOJI` matches exactly the emoji name without colons (e.g. `white_check_mark`, not `:white_check_mark:`). Also confirm the `reactions:read` scope is added and the app is reinstalled after adding it.
 
 **GitHub Actions run failed**
 → Actions tab → click the failed run → expand the failed step to see full logs.

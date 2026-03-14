@@ -51,4 +51,10 @@ export const configValidationSchema = Joi.object({
     .optional(),
   DEFAULT_TONE: Joi.string().allow("").optional(),
   PROMPT_VERSION: Joi.string().allow("").optional(),
+
+  // Slack approval gate (optional — if not set, posts publish immediately)
+  SLACK_BOT_TOKEN: Joi.string().allow("").optional(),
+  SLACK_CHANNEL_ID: Joi.string().allow("").optional(),
+  SLACK_APPROVE_EMOJI: Joi.string().allow("").optional(),
+  SLACK_APPROVAL_TIMEOUT_MINUTES: Joi.number().integer().min(1).max(360).optional(),
 });
