@@ -113,6 +113,7 @@ export class NewsService {
       olderThanWindow: 0,
       lowRelevance: 0,
       fetchFailed: 0,
+      languageMismatch: 0,
       nicheMismatch: 0,
     };
     const merged = [...redditItems, ...googleItems, ...newsApiItems, ...devToItems]
@@ -223,7 +224,13 @@ export class NewsService {
       throw new Error("Could not get full article content for any story");
     }
 
-    const nicheAlignedStories = withContent.filter((item) => {
+    const englishStories = withContent.filter((item) => {
+      const english = this.isEnglishContent(item);
+      if (!english) skipCounts.languageMismatch += 1;
+      return english;
+    });
+
+    const nicheAlignedStories = englishStories.filter((item) => {
       const aligned = this.isNicheAligned(item);
       if (!aligned) skipCounts.nicheMismatch += 1;
       return aligned;
@@ -231,7 +238,7 @@ export class NewsService {
 
     if (nicheAlignedStories.length === 0) {
       this.logger.warn(
-        `Fetched stories failed niche validation. nicheMismatch=${skipCounts.nicheMismatch}`,
+        `Fetched stories failed validation. languageMismatch=${skipCounts.languageMismatch}, nicheMismatch=${skipCounts.nicheMismatch}`,
       );
       if (this.allowEvergreenFallback) {
         const evergreenStories = this.getEvergreenFallbackStories(count);
@@ -575,8 +582,29 @@ export class NewsService {
     return this.relevanceScore(text) > 0;
   }
 
+  private isEnglishContent(item: RealNewsItem): boolean {
+    const sample = `${item.title} ${item.articleText ?? ""}`.toLowerCase().slice(0, 3000);
+    if (!sample.trim()) return true;
+
+    const englishSignals = this.countMatches(sample, [
+      " the ", " and ", " for ", " with ", " this ", " that ", " from ", " into ",
+      "software", "platform", "system", "build", "developer", "business", "engineering",
+    ]);
+    const portugueseSignals = this.countMatches(sample, [
+      " uma ", " para ", " com ", " que ", " como ", " mais ", " uma ", " este ",
+      " essa ", " isso ", " onde ", " ainda ", " deploy ", " usando ", " branch ",
+      " times ", " fluxo ", " curva de aprendizado", " além de",
+    ]) + this.countRegexMatches(sample, /[ãõçáéíóúâêôà]/g);
+
+    return englishSignals >= portugueseSignals;
+  }
+
   private countMatches(text: string, terms: string[]): number {
     return terms.filter((term) => text.includes(term)).length;
+  }
+
+  private countRegexMatches(text: string, pattern: RegExp): number {
+    return text.match(pattern)?.length ?? 0;
   }
 
   private sourceAuthorityBoost(item: RealNewsItem): number {
