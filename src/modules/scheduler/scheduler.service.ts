@@ -160,8 +160,8 @@ export class SchedulerService {
         story: fallbackStory,
       };
     }
-    const linkedInContent = generation.linkedInContent;
-    const tweetContent = generation.tweetContent;
+    let linkedInContent = generation.linkedInContent;
+    let tweetContent = generation.tweetContent;
     const chosenStory = generation.story;
     this.logger.log(
       `Primary story for this run: "${chosenStory.title}" (${chosenStory.source})`,
@@ -170,18 +170,39 @@ export class SchedulerService {
     // Step 3 — Slack approval gate (skipped if Slack is not configured)
     if (this.slack.enabled) {
       const niche = this.config.get<string>("app.news.niche") ?? "business-architect";
+      const variantCount = this.slack.variantCount;
+
+      // Generate additional variants if more than 1 requested (first variant already generated above)
+      let variants = [{ linkedInContent, tweetContent }];
+      if (variantCount > 1) {
+        const extra = await Promise.allSettled(
+          Array.from({ length: variantCount - 1 }, () =>
+            this.claude.generatePosts(selectedStories, date, {
+              linkedin: this.linkedinEnabled,
+              twitter: this.twitterEnabled,
+            }),
+          ),
+        );
+        for (const result of extra) {
+          if (result.status === "fulfilled") {
+            variants.push(result.value);
+          }
+        }
+      }
+
       const { ts } = await this.slack.postForApproval({
         niche,
-        linkedInContent,
-        tweetContent,
+        storyTitle: chosenStory.title,
+        variants,
       });
-      const approval = await this.slack.waitForApproval(ts);
-      if (approval !== "approved") {
-        this.logger.log(`Publish aborted — Slack approval ${approval}`);
+
+      const selected = await this.slack.waitForApproval(ts, variants.length);
+      if (selected === null) {
+        this.logger.log("Publish aborted — Slack approval timed out");
         const aborted: SocialPostResult = {
           platform: "linkedin",
           success: false,
-          error: `slack:${approval}`,
+          error: "slack:timeout",
           postedAt: runAt,
         };
         return {
@@ -190,6 +211,12 @@ export class SchedulerService {
           twitterResult: { ...aborted, platform: "twitter" },
         };
       }
+
+      // Use the chosen variant's content for publishing
+      const chosen = variants[selected - 1];
+      linkedInContent = chosen.linkedInContent;
+      tweetContent = chosen.tweetContent;
+      this.logger.log(`Publishing variant ${selected} as selected in Slack`);
     }
 
     // Step 4 — publish to whichever platforms are configured

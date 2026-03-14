@@ -153,8 +153,8 @@ jobs:
           TWITTER_POST_LENGTH: ${{ secrets.TWITTER_POST_LENGTH }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
-          SLACK_APPROVE_EMOJI: ${{ secrets.SLACK_APPROVE_EMOJI }}
           SLACK_APPROVAL_TIMEOUT_MINUTES: ${{ secrets.SLACK_APPROVAL_TIMEOUT_MINUTES }}
+          SLACK_POST_VARIANTS: ${{ secrets.SLACK_POST_VARIANTS }}
 
       - name: Persist run state
         if: steps.interval.outputs.should_run == 'true' && steps.post_run.outcome == 'success' && steps.post_run.outputs.published_any == 'true'
