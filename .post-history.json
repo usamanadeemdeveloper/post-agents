@@ -2,6 +2,20 @@
   "version": 1,
   "entries": [
     {
+      "fingerprint": "https://dev.to/devteam/congrats-to-the-github-copilot-cli-challenge-winners-2240|congrats to the github copilot cli challenge winners|dev.to",
+      "normalizedUrl": "https://dev.to/devteam/congrats-to-the-github-copilot-cli-challenge-winners-2240",
+      "normalizedTitle": "congrats to the github copilot cli challenge winners",
+      "source": "Dev.to",
+      "originalUrl": "https://dev.to/devteam/congrats-to-the-github-copilot-cli-challenge-winners-2240",
+      "originalTitle": "Congrats to the GitHub Copilot CLI Challenge Winners!",
+      "postedAt": "2026-03-14T23:49:28.223Z",
+      "platforms": [
+        "linkedin"
+      ],
+      "linkedinHash": "6407260f",
+      "linkedinSignature": "agent announced anyone application applications attention auto before binary building built challenge code congrats copilot demonstration described developed developer developers development drawing easier engine engineering especially evaluating experience framing frontend functional future generator geometry github handling help highlight hobbyist idea impressive innovation installation life linux making manager matters minimal modifier multi nadeem other partner paying plane plug posted productivity projects real reality recognized redefining results reviewed runner showcase signal stood strikes strong submissions terminal think thinking three time tool tooling tracking turn unique usama utilizing vector version winners workflow worth wrapped"
+    },
+    {
       "fingerprint": "https://dev.to/sylwia-lask/why-are-we-still-doing-gpu-work-in-javascript-live-webgpu-benchmark-demo-4j6i|why are we still doing gpu work in javascript live webgpu benchmark demo|dev.to",
       "normalizedUrl": "https://dev.to/sylwia-lask/why-are-we-still-doing-gpu-work-in-javascript-live-webgpu-benchmark-demo-4j6i",
       "normalizedTitle": "why are we still doing gpu work in javascript live webgpu benchmark demo",
