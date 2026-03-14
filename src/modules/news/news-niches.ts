@@ -1,14 +1,18 @@
 export type NewsNiche = 'business-architect' | 'developer';
 
 export interface NicheProfile {
+  name: NewsNiche;
   subreddits: string[];
   googleNewsQueries: string[];
   newsApiQueries: string[];
+  devToTags: string[];
   keywords: string[];
+  allowCommunitySources: boolean;
 }
 
 const NICHES: Record<NewsNiche, NicheProfile> = {
   'business-architect': {
+    name: 'business-architect',
     subreddits: [
       'ecommerce',
       'shopify',
@@ -23,36 +27,40 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
       'softwarearchitecture',
     ],
     googleNewsQueries: [
-      'ecommerce software technology retail digital transformation',
-      'healthcare technology digital health software hospital',
-      'hospitality technology hotel software guest experience',
-      'software architecture SaaS platform business automation',
+      'ecommerce software platform retail technology integration',
+      'healthcare software digital health EHR hospital technology',
+      'hospitality software hotel technology PMS guest experience',
     ],
     newsApiQueries: [
-      'ecommerce software OR retail technology OR online store platform',
-      'healthcare technology OR health IT OR digital health software',
-      'hospitality technology OR hotel software OR travel tech',
-      'SaaS platform OR business software OR digital transformation',
+      'ecommerce software OR retail platform OR online store technology',
+      'healthcare software OR health IT OR EHR OR digital health hospital',
+      'hospitality software OR hotel technology OR PMS OR booking platform',
     ],
+    devToTags: ['shopify', 'ecommerce', 'saas', 'healthtech', 'api'],
     keywords: [
-      // Ecommerce
-      'ecommerce', 'e-commerce', 'retail', 'shopify', 'amazon', 'marketplace',
-      'checkout', 'payment', 'cart', 'online store', 'online shopping', 'merchant',
-      'fulfillment', 'inventory',
-      // Healthcare
-      'healthcare', 'health tech', 'healthtech', 'hospital', 'patient', 'medical',
-      'ehr', 'telemedicine', 'pharma', 'clinical', 'digital health', 'health it',
-      'interoperability',
-      // Hospitality
-      'hospitality', 'hotel', 'restaurant', 'booking', 'reservation', 'travel tech',
-      'property management', 'pms', 'guest experience',
-      // Cross-vertical
-      'software', 'platform', 'automation', 'saas', 'digital transformation',
-      'technology', 'ai', 'integration', 'efficiency', 'roi', 'revenue', 'cost reduction',
+      // Ecommerce — specific to software/platform in this space
+      'ecommerce', 'e-commerce', 'shopify', 'woocommerce', 'magento', 'marketplace',
+      'checkout', 'payment gateway', 'cart', 'online store', 'merchant platform',
+      'fulfillment software', 'inventory management', 'retail software', 'pos system',
+      'order management',
+      // Healthcare — specific to software/platform in this space
+      'healthcare software', 'health tech', 'healthtech', 'ehr', 'emr',
+      'telemedicine', 'clinical software', 'digital health', 'health it',
+      'patient portal', 'medical software', 'hospital software', 'practice management',
+      'interoperability', 'health data',
+      // Hospitality — specific to software/platform in this space
+      'hospitality software', 'hotel software', 'hotel technology', 'restaurant software',
+      'booking software', 'reservation system', 'travel tech', 'property management system',
+      'pms software', 'guest experience software', 'hotel pms', 'channel manager',
+      // Software architecture signals (must co-occur with vertical terms to score high)
+      'custom software', 'software integration', 'api integration', 'software platform',
+      'saas solution', 'cloud software', 'software architecture',
     ],
+    allowCommunitySources: false,
   },
 
   developer: {
+    name: 'developer',
     subreddits: [
       'programming', 'softwarearchitecture', 'webdev', 'javascript', 'typescript',
       'reactjs', 'nextjs', 'node', 'devops', 'aws', 'machinelearning', 'artificial',
@@ -70,6 +78,7 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
       'React OR Next.js OR Node.js OR web framework update',
       'Kubernetes OR Docker OR AWS OR DevOps OR platform engineering',
     ],
+    devToTags: ['javascript', 'typescript', 'python', 'webdev', 'devops', 'aws', 'ai'],
     keywords: [
       'typescript', 'javascript', 'python', 'rust', 'golang', 'go ', 'java', 'node',
       'react', 'next.js', 'nextjs', 'vue', 'angular', 'svelte', 'spring', 'django',
@@ -80,6 +89,7 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
       'devops', 'kubernetes', 'docker', 'aws', 'gcp', 'azure', 'serverless',
       'platform engineering', 'ci/cd', 'software',
     ],
+    allowCommunitySources: true,
   },
 };
 

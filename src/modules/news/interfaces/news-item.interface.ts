@@ -19,6 +19,8 @@ export interface RealNewsItem {
   score: number;
   commentCount: number;
   publishedAt: string;
-  description?: string; // snippet from RSS/NewsAPI — used as fallback if full article can't be scraped
-  articleText?: string; // full article text when successfully scraped
+  description?: string;
+  articleText?: string; // full article text — required before a story can be used
+  devToId?: number;     // Dev.to article ID — used to fetch body_markdown via API
+  sourceDomain?: string;
 }

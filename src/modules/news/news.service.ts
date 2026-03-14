@@ -9,6 +9,54 @@ import { NicheProfile, resolveNiche } from "./news-niches";
 const REDDIT_BASE = "https://www.reddit.com";
 const GOOGLE_NEWS_BASE = "https://news.google.com/rss/search";
 const NEWSAPI_BASE = "https://newsapi.org/v2/everything";
+const DEVTO_BASE = "https://dev.to/api";
+
+// Known paywalled domains — articles from these are skipped before scraping
+const PAYWALLED_DOMAINS = [
+  "wsj.com", "nytimes.com", "bloomberg.com", "ft.com",
+  "washingtonpost.com", "economist.com", "barrons.com",
+  "seekingalpha.com", "hbr.org", "thetimes.co.uk", "telegraph.co.uk",
+  "theatlantic.com", "businessinsider.com", "fortune.com",
+  "forbes.com", "inc.com",
+];
+
+const PR_WIRE_DOMAINS = [
+  "globenewswire.com",
+  "prnewswire.com",
+  "businesswire.com",
+  "accessnewswire.com",
+];
+
+const OFFICIAL_SOURCE_DOMAINS = [
+  "shopify.com",
+  "klaviyo.com",
+  "stripe.com",
+  "cloudbeds.com",
+  "mews.com",
+  "amazon.com",
+  "google.com",
+  "meta.com",
+  "microsoft.com",
+  "salesforce.com",
+];
+
+const TRUSTED_EDITORIAL_DOMAINS = [
+  "digitalcommerce360.com",
+  "retaildive.com",
+  "modernretail.co",
+  "chainstoreage.com",
+  "pymnts.com",
+  "healthcareitnews.com",
+  "mobihealthnews.com",
+  "fiercehealthcare.com",
+  "medcitynews.com",
+  "beckershospitalreview.com",
+  "hospitalitynet.org",
+  "hoteltechreport.com",
+  "skift.com",
+  "techcrunch.com",
+  "venturebeat.com",
+];
 
 @Injectable()
 export class NewsService {
@@ -32,14 +80,19 @@ export class NewsService {
     );
 
     // Fetch from all sources simultaneously
-    const [redditItems, googleItems, newsApiItems] = await Promise.all([
-      this.fetchFromReddit(),
+    const [redditItems, googleItems, newsApiItems, devToItems] = await Promise.all([
+      this.niche.allowCommunitySources
+        ? this.fetchFromReddit()
+        : Promise.resolve([]),
       this.fetchFromGoogleNews(),
       this.fetchFromNewsApi(),
+      this.niche.allowCommunitySources
+        ? this.fetchFromDevTo()
+        : Promise.resolve([]),
     ]);
 
     this.logger.log(
-      `Raw items — Reddit: ${redditItems.length} | Google News: ${googleItems.length} | NewsAPI: ${newsApiItems.length}`,
+      `Raw items — Reddit: ${redditItems.length} | Google News: ${googleItems.length} | NewsAPI: ${newsApiItems.length} | Dev.to: ${devToItems.length}`,
     );
 
     // Merge, deduplicate, drop items older than 7 days, then rank by:
@@ -47,9 +100,10 @@ export class NewsService {
     // This ensures posts are both recent AND engaging — not just one or the other.
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const seen = new Set<string>();
-    const merged = [...redditItems, ...googleItems, ...newsApiItems]
+    const merged = [...redditItems, ...googleItems, ...newsApiItems, ...devToItems]
       .filter((item) => {
         if (!item.url || seen.has(item.url)) return false;
+        if (this.isBlockedDomain(item.url)) return false;
         seen.add(item.url);
         if (item.publishedAt && new Date(item.publishedAt).getTime() < cutoff) return false;
         return true;
@@ -71,12 +125,10 @@ export class NewsService {
       `${merged.length} relevant candidates after scoring. Fetching full content...`,
     );
 
-    // Fetch full article content — fall back to description snippet if scraping fails
+    // Fetch full article content for the strongest candidates, then re-rank by source quality.
     const withContent: RealNewsItem[] = [];
 
     for (const item of merged) {
-      if (withContent.length >= count) break;
-
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { _relevance, _combined, ...rest } = item as RealNewsItem & {
         _relevance: number;
@@ -86,41 +138,71 @@ export class NewsService {
       // Reddit self posts already carry their full text — skip scraping entirely
       if (rest.articleText && rest.articleText.length >= 300) {
         this.logger.log(`✓ "${item.title}" [${item.source}] — pre-attached content`);
-        withContent.push(rest);
+        withContent.push({
+          ...rest,
+          sourceDomain: this.extractDomain(rest.url),
+        });
         continue;
       }
 
-      const articleText = await this.fetchFullArticleText(item.url);
+      // Dev.to articles — fetch full markdown via API (always available, no scraping)
+      if (rest.devToId) {
+        const markdown = await this.fetchDevToArticle(rest.devToId);
+        if (markdown && markdown.length >= 300) {
+          this.logger.log(`✓ "${item.title}" [Dev.to] — full markdown`);
+          withContent.push({
+            ...rest,
+            articleText: markdown.slice(0, 8000),
+            sourceDomain: this.extractDomain(rest.url),
+          });
+          continue;
+        }
+        this.logger.warn(`Skipping "${item.title}" — Dev.to markdown unavailable`);
+        continue;
+      }
 
-      if (articleText) {
+      // All other sources — scrape the article URL
+      const fetched = await this.fetchFullArticleText(item.url);
+
+      if (fetched) {
         this.logger.log(`✓ "${item.title}" [${item.source}] — full article`);
-        withContent.push({ ...rest, articleText });
-      } else if (item.description && item.description.length >= 300) {
-        this.logger.log(
-          `✓ "${item.title}" [${item.source}] — using description snippet`,
-        );
         withContent.push({
           ...rest,
-          articleText: `[SUMMARY ONLY — full article unavailable. Base the post strictly on what is written below, do not expand or infer beyond it.]\n\n${item.description}`,
+          articleText: fetched.text,
+          url: fetched.resolvedUrl,
+          sourceDomain: fetched.sourceDomain,
         });
       } else {
-        this.logger.warn(
-          `Skipping "${item.title}" — no usable content (scrape failed, no description)`,
-        );
+        this.logger.warn(`Skipping "${item.title}" — could not fetch full article text`);
       }
     }
 
     if (withContent.length === 0) {
       throw new Error(
-        "Could not get content for any story (all scraped + no descriptions available)",
+        "Could not get full article content for any story",
       );
     }
 
+    const nicheAlignedStories = withContent.filter((item) => this.isNicheAligned(item));
+
+    if (nicheAlignedStories.length === 0) {
+      throw new Error("No fetched stories matched the configured niche after content validation");
+    }
+
+    const rankedStories = nicheAlignedStories
+      .map((item) => ({
+        ...item,
+        _finalScore: this.finalStoryScore(item),
+      }))
+      .sort((a, b) => b._finalScore - a._finalScore)
+      .slice(0, count)
+      .map(({ _finalScore, ...item }) => item);
+
     this.logger.log(
-      `${withContent.length} stories ready with full content. Top: "${withContent[0].title}"`,
+      `${rankedStories.length} stories ready with full content. Top: "${rankedStories[0].title}"`,
     );
 
-    return withContent;
+    return rankedStories;
   }
 
   // ─── Reddit ─────────────────────────────────────────────────────────────────
@@ -295,7 +377,154 @@ export class NewsService {
     }
   }
 
+  // ─── Dev.to ──────────────────────────────────────────────────────────────────
+
+  private async fetchFromDevTo(): Promise<RealNewsItem[]> {
+    const results = await Promise.all(
+      this.niche.devToTags.map((tag) => this.fetchDevToByTag(tag)),
+    );
+    return results.flat();
+  }
+
+  private async fetchDevToByTag(tag: string): Promise<RealNewsItem[]> {
+    try {
+      const { data } = await firstValueFrom(
+        this.http.get<{
+          id: number;
+          title: string;
+          url: string;
+          description?: string;
+          published_timestamp: string;
+          positive_reactions_count: number;
+          comments_count: number;
+        }[]>(`${DEVTO_BASE}/articles`, {
+          params: { tag, per_page: 10, top: 7 },
+          timeout: 8000,
+          headers: { "User-Agent": "post-agents-bot/1.0" },
+        }),
+      );
+
+      return data
+        .filter((a) => a.title && a.id)
+        .map((a) => ({
+          title: a.title,
+          url: a.url,
+          source: "Dev.to",
+          subreddit: "",
+          score: a.positive_reactions_count ?? 0,
+          commentCount: a.comments_count ?? 0,
+          publishedAt: a.published_timestamp,
+          description: a.description || undefined,
+          devToId: a.id,
+        }));
+    } catch {
+      this.logger.warn(`Dev.to tag "${tag}" failed — skipping`);
+      return [];
+    }
+  }
+
+  private async fetchDevToArticle(id: number): Promise<string | undefined> {
+    try {
+      const { data } = await firstValueFrom(
+        this.http.get<{ body_markdown?: string }>(`${DEVTO_BASE}/articles/${id}`, {
+          timeout: 8000,
+          headers: { "User-Agent": "post-agents-bot/1.0" },
+        }),
+      );
+      const markdown = data.body_markdown?.trim();
+      return markdown && markdown.length > 0 ? markdown : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   // ─── Shared utilities ────────────────────────────────────────────────────────
+
+  private isBlockedDomain(url: string): boolean {
+    const hostname = this.extractDomain(url);
+    return [...PAYWALLED_DOMAINS, ...PR_WIRE_DOMAINS]
+      .some((d) => hostname === d || hostname.endsWith(`.${d}`));
+  }
+
+  private extractDomain(url: string): string {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    } catch {
+      return "";
+    }
+  }
+
+  private finalStoryScore(item: RealNewsItem): number {
+    const contentRichnessBoost = Math.min(
+      Math.max((item.articleText?.length ?? 0) / 3500, 0.6),
+      1.2,
+    );
+    return this.combinedScore(item)
+      * this.sourceAuthorityBoost(item)
+      * contentRichnessBoost
+      * this.nicheAlignmentBoost(item);
+  }
+
+  private nicheAlignmentBoost(item: RealNewsItem): number {
+    if (this.niche.name !== "business-architect") return 1;
+    const text = `${item.title} ${item.articleText ?? ""}`.toLowerCase();
+    const verticalHits = this.countMatches(text, [
+      "ecommerce", "e-commerce", "retail", "shopify", "woocommerce", "magento",
+      "merchant", "checkout", "marketplace", "hospital", "clinic", "patient",
+      "healthcare", "digital health", "health system", "hotel", "hospitality",
+      "restaurant", "guest", "reservation", "travel",
+    ]);
+    const techHits = this.countMatches(text, [
+      "software", "platform", "integration", "api", "automation", "system",
+      "saas", "cloud", "digital", "data", "ehr", "emr", "portal", "workflow",
+      "property management system", "pms", "booking engine", "architecture",
+      "infrastructure",
+    ]);
+
+    if (verticalHits > 0 && techHits > 0) return 1.15;
+    return 1;
+  }
+
+  private isNicheAligned(item: RealNewsItem): boolean {
+    const text = `${item.title} ${item.articleText ?? ""}`.toLowerCase();
+
+    if (this.niche.name === "business-architect") {
+      const verticalHits = this.countMatches(text, [
+        "ecommerce", "e-commerce", "retail", "shopify", "woocommerce", "magento",
+        "merchant", "checkout", "marketplace", "hospital", "clinic", "patient",
+        "healthcare", "digital health", "health system", "hotel", "hospitality",
+        "restaurant", "guest", "reservation", "travel",
+      ]);
+      const techHits = this.countMatches(text, [
+        "software", "platform", "integration", "api", "automation", "system",
+        "saas", "cloud", "digital", "data", "ehr", "emr", "portal", "workflow",
+        "property management system", "pms", "booking engine", "architecture",
+        "infrastructure",
+      ]);
+      return verticalHits > 0 && techHits > 0;
+    }
+
+    return this.relevanceScore(text) > 0;
+  }
+
+  private countMatches(text: string, terms: string[]): number {
+    return terms.filter((term) => text.includes(term)).length;
+  }
+
+  private sourceAuthorityBoost(item: RealNewsItem): number {
+    const domain = item.sourceDomain ?? this.extractDomain(item.url);
+    if (!domain) return 1;
+    if (OFFICIAL_SOURCE_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) {
+      return 1.4;
+    }
+    if (TRUSTED_EDITORIAL_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`))) {
+      return 1.2;
+    }
+    if (domain === "news.google.com") return 0.8;
+    if (domain === "reddit.com" || domain.endsWith(".reddit.com")) return 0.6;
+    if (domain === "dev.to") return 0.6;
+    return 1;
+  }
 
   private relevanceScore(title: string): number {
     const text = title.toLowerCase();
@@ -321,9 +550,9 @@ export class NewsService {
     return relevance * recencyBoost * popularityBoost;
   }
 
-  private async fetchFullArticleText(url: string): Promise<string | undefined> {
+  private async fetchFullArticleText(url: string): Promise<{ text: string; resolvedUrl: string; sourceDomain: string } | undefined> {
     try {
-      const { data } = await firstValueFrom(
+      const response = await firstValueFrom(
         this.http.get<string>(url, {
           timeout: 10000,
           headers: {
@@ -334,13 +563,18 @@ export class NewsService {
         }),
       );
 
-      // Detect paywall / login walls before wasting Claude tokens on junk
-      if (this.isPaywalled(data)) return undefined;
+      // Capture the final URL after redirects (handles Google News CBMi... redirect URLs)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resolvedUrl: string = (response.request as any)?.res?.responseUrl || url;
+      const sourceDomain = this.extractDomain(resolvedUrl);
 
-      const text = this.extractArticleText(data);
+      // Detect paywall / login walls before wasting Claude tokens on junk
+      if (this.isBlockedDomain(resolvedUrl) || this.isPaywalled(response.data)) return undefined;
+
+      const text = this.extractArticleText(response.data);
       if (text.length < 300) return undefined;
       // Cap at ~8000 chars to keep Claude prompt size reasonable
-      return text.slice(0, 8000);
+      return { text: text.slice(0, 8000), resolvedUrl, sourceDomain };
     } catch {
       return undefined;
     }
@@ -366,11 +600,47 @@ export class NewsService {
   }
 
   private extractArticleText(html: string): string {
-    // Step 1 — remove entire boilerplate sections before stripping tags
-    const cleaned = html
+    const fragment = this.extractLikelyArticleFragment(html) || html;
+    return this.htmlToText(fragment);
+  }
+
+  private extractLikelyArticleFragment(html: string): string | undefined {
+    const candidates = [
+      ...this.collectHtmlMatches(/<article\b[^>]*>([\s\S]*?)<\/article>/gi, html),
+      ...this.collectHtmlMatches(/<main\b[^>]*>([\s\S]*?)<\/main>/gi, html),
+      ...this.collectHtmlMatches(
+        /<(?:section|div)\b[^>]*(?:class|id)="[^"]*(?:article-body|article-content|story-body|story-content|entry-content|post-content|content-body|main-content|article__content|article-copy|rich-text|post-body|wysiwyg)[^"]*"[^>]*>([\s\S]*?)<\/(?:section|div)>/gi,
+        html,
+      ),
+    ];
+
+    const viable = candidates
+      .map((candidate) => ({
+        html: candidate,
+        textLength: this.htmlToText(candidate).length,
+      }))
+      .filter((candidate) => candidate.textLength >= 300)
+      .sort((a, b) => b.textLength - a.textLength);
+
+    return viable[0]?.html;
+  }
+
+  private collectHtmlMatches(pattern: RegExp, html: string): string[] {
+    const matches: string[] = [];
+    for (const match of html.matchAll(pattern)) {
+      const fragment = match[1]?.trim();
+      if (fragment) matches.push(fragment);
+    }
+    return matches;
+  }
+
+  private htmlToText(html: string): string {
+    return html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
       .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
+      .replace(/<svg[\s\S]*?<\/svg>/gi, "")
+      .replace(/<!--[\s\S]*?-->/g, "")
       // Navigation, header, footer, sidebar, cookie banners, ads
       .replace(/<nav[\s\S]*?<\/nav>/gi, "")
       .replace(/<header[\s\S]*?<\/header>/gi, "")
@@ -388,11 +658,10 @@ export class NewsService {
       .replace(/&lt;/g, "<")
       .replace(/&gt;/g, ">")
       .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
       .replace(/&#\d+;/g, " ")
       // Collapse whitespace
       .replace(/\s{2,}/g, " ")
       .trim();
-
-    return cleaned;
   }
 }

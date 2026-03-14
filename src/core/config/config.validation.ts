@@ -38,14 +38,13 @@ export const configValidationSchema = Joi.object({
   POST_AUTHOR_NAME: Joi.string().allow("").optional(),
   POST_AGENT_NAME: Joi.string().allow("").optional(),
   NEWS_STORY_COUNT: Joi.number().integer().min(1).max(20).optional(),
-  POST_HASHTAGS_LINKEDIN: Joi.string().allow("").optional(),
-  POST_HASHTAGS_TWITTER: Joi.string().allow("").optional(),
   LINKEDIN_POST_LENGTH: Joi.string().allow("").optional(),
   TWITTER_POST_LENGTH: Joi.string().allow("").optional(),
 
   POSTING_STYLE: Joi.string()
     .valid("default", "technical", "marketing", "casual", "business-architect")
-    .default("default"),
+    .allow("")
+    .optional(),
   DEFAULT_TONE: Joi.string().allow("").optional(),
   PROMPT_VERSION: Joi.string().allow("").optional(),
 });

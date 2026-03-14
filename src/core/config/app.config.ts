@@ -38,11 +38,9 @@ export default registerAs("app", () => ({
   },
 
   prompts: {
-    postingStyle: process.env.POSTING_STYLE ?? 'default',
+    postingStyle: process.env.POSTING_STYLE ?? '',
     defaultTone: process.env.DEFAULT_TONE ?? '',
     promptVersion: process.env.PROMPT_VERSION ?? '',
-    hashtagsLinkedIn: process.env.POST_HASHTAGS_LINKEDIN || '',
-    hashtagsTwitter: process.env.POST_HASHTAGS_TWITTER || '',
     linkedInPostLength: process.env.LINKEDIN_POST_LENGTH || '',
     twitterPostLength: process.env.TWITTER_POST_LENGTH || '',
   },
