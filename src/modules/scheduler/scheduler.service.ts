@@ -427,14 +427,14 @@ export class SchedulerService {
       ];
       const candidateStory = candidateStories[0];
 
-      const [linkedInContent, tweetContent] = await Promise.all([
-        this.linkedinEnabled
-          ? this.claude.generateLinkedInPost(candidateStories, date)
-          : Promise.resolve(null),
-        this.twitterEnabled
-          ? this.claude.generateTwitterPost(candidateStories, date)
-          : Promise.resolve(null),
-      ]);
+      const { linkedInContent, tweetContent } = await this.claude.generatePosts(
+        candidateStories,
+        date,
+        {
+          linkedin: this.linkedinEnabled,
+          twitter: this.twitterEnabled,
+        },
+      );
 
       const duplicateLinkedIn =
         !!linkedInContent &&
