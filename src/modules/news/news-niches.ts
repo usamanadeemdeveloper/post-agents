@@ -4,7 +4,9 @@ export interface NicheProfile {
   subreddits: string[];
   googleNewsQueries: string[];
   newsApiQueries: string[];
+  devToTags: string[];
   keywords: string[];
+  allowCommunitySources: boolean;
 }
 
 const NICHES: Record<NewsNiche, NicheProfile> = {
@@ -32,6 +34,7 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
       'healthcare software OR health IT OR EHR OR digital health hospital',
       'hospitality software OR hotel technology OR PMS OR booking platform',
     ],
+    devToTags: ['shopify', 'ecommerce', 'saas', 'healthtech', 'api'],
     keywords: [
       // Ecommerce — specific to software/platform in this space
       'ecommerce', 'e-commerce', 'shopify', 'woocommerce', 'magento', 'marketplace',
@@ -51,6 +54,7 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
       'custom software', 'software integration', 'api integration', 'software platform',
       'saas solution', 'cloud software', 'software architecture',
     ],
+    allowCommunitySources: false,
   },
 
   developer: {
@@ -71,6 +75,7 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
       'React OR Next.js OR Node.js OR web framework update',
       'Kubernetes OR Docker OR AWS OR DevOps OR platform engineering',
     ],
+    devToTags: ['javascript', 'typescript', 'python', 'webdev', 'devops', 'aws', 'ai'],
     keywords: [
       'typescript', 'javascript', 'python', 'rust', 'golang', 'go ', 'java', 'node',
       'react', 'next.js', 'nextjs', 'vue', 'angular', 'svelte', 'spring', 'django',
@@ -81,6 +86,7 @@ const NICHES: Record<NewsNiche, NicheProfile> = {
       'devops', 'kubernetes', 'docker', 'aws', 'gcp', 'azure', 'serverless',
       'platform engineering', 'ci/cd', 'software',
     ],
+    allowCommunitySources: true,
   },
 };
 

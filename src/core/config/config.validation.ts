@@ -43,7 +43,8 @@ export const configValidationSchema = Joi.object({
 
   POSTING_STYLE: Joi.string()
     .valid("default", "technical", "marketing", "casual", "business-architect")
-    .default("default"),
+    .allow("")
+    .optional(),
   DEFAULT_TONE: Joi.string().allow("").optional(),
   PROMPT_VERSION: Joi.string().allow("").optional(),
 });

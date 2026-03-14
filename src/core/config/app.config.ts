@@ -38,7 +38,7 @@ export default registerAs("app", () => ({
   },
 
   prompts: {
-    postingStyle: process.env.POSTING_STYLE ?? 'default',
+    postingStyle: process.env.POSTING_STYLE ?? '',
     defaultTone: process.env.DEFAULT_TONE ?? '',
     promptVersion: process.env.PROMPT_VERSION ?? '',
     linkedInPostLength: process.env.LINKEDIN_POST_LENGTH || '',
