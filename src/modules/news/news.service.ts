@@ -20,6 +20,13 @@ const PAYWALLED_DOMAINS = [
   "forbes.com", "inc.com",
 ];
 
+const PR_WIRE_DOMAINS = [
+  "globenewswire.com",
+  "prnewswire.com",
+  "businesswire.com",
+  "accessnewswire.com",
+];
+
 const OFFICIAL_SOURCE_DOMAINS = [
   "shopify.com",
   "klaviyo.com",
@@ -176,7 +183,13 @@ export class NewsService {
       );
     }
 
-    const rankedStories = withContent
+    const nicheAlignedStories = withContent.filter((item) => this.isNicheAligned(item));
+
+    if (nicheAlignedStories.length === 0) {
+      throw new Error("No fetched stories matched the configured niche after content validation");
+    }
+
+    const rankedStories = nicheAlignedStories
       .map((item) => ({
         ...item,
         _finalScore: this.finalStoryScore(item),
@@ -429,7 +442,8 @@ export class NewsService {
 
   private isBlockedDomain(url: string): boolean {
     const hostname = this.extractDomain(url);
-    return PAYWALLED_DOMAINS.some((d) => hostname === d || hostname.endsWith(`.${d}`));
+    return [...PAYWALLED_DOMAINS, ...PR_WIRE_DOMAINS]
+      .some((d) => hostname === d || hostname.endsWith(`.${d}`));
   }
 
   private extractDomain(url: string): string {
@@ -445,7 +459,56 @@ export class NewsService {
       Math.max((item.articleText?.length ?? 0) / 3500, 0.6),
       1.2,
     );
-    return this.combinedScore(item) * this.sourceAuthorityBoost(item) * contentRichnessBoost;
+    return this.combinedScore(item)
+      * this.sourceAuthorityBoost(item)
+      * contentRichnessBoost
+      * this.nicheAlignmentBoost(item);
+  }
+
+  private nicheAlignmentBoost(item: RealNewsItem): number {
+    if (this.niche.name !== "business-architect") return 1;
+    const text = `${item.title} ${item.articleText ?? ""}`.toLowerCase();
+    const verticalHits = this.countMatches(text, [
+      "ecommerce", "e-commerce", "retail", "shopify", "woocommerce", "magento",
+      "merchant", "checkout", "marketplace", "hospital", "clinic", "patient",
+      "healthcare", "digital health", "health system", "hotel", "hospitality",
+      "restaurant", "guest", "reservation", "travel",
+    ]);
+    const techHits = this.countMatches(text, [
+      "software", "platform", "integration", "api", "automation", "system",
+      "saas", "cloud", "digital", "data", "ehr", "emr", "portal", "workflow",
+      "property management system", "pms", "booking engine", "architecture",
+      "infrastructure",
+    ]);
+
+    if (verticalHits > 0 && techHits > 0) return 1.15;
+    return 1;
+  }
+
+  private isNicheAligned(item: RealNewsItem): boolean {
+    const text = `${item.title} ${item.articleText ?? ""}`.toLowerCase();
+
+    if (this.niche.name === "business-architect") {
+      const verticalHits = this.countMatches(text, [
+        "ecommerce", "e-commerce", "retail", "shopify", "woocommerce", "magento",
+        "merchant", "checkout", "marketplace", "hospital", "clinic", "patient",
+        "healthcare", "digital health", "health system", "hotel", "hospitality",
+        "restaurant", "guest", "reservation", "travel",
+      ]);
+      const techHits = this.countMatches(text, [
+        "software", "platform", "integration", "api", "automation", "system",
+        "saas", "cloud", "digital", "data", "ehr", "emr", "portal", "workflow",
+        "property management system", "pms", "booking engine", "architecture",
+        "infrastructure",
+      ]);
+      return verticalHits > 0 && techHits > 0;
+    }
+
+    return this.relevanceScore(text) > 0;
+  }
+
+  private countMatches(text: string, terms: string[]): number {
+    return terms.filter((term) => text.includes(term)).length;
   }
 
   private sourceAuthorityBoost(item: RealNewsItem): number {
