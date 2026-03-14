@@ -278,7 +278,7 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 |---|---|---|
 | `SLACK_BOT_TOKEN` | Bot User OAuth Token from your Slack app (`xoxb-...`) | no approval gate |
 | `SLACK_CHANNEL_ID` | Channel ID where previews are posted (`C...`) | — |
-| `SLACK_APPROVE_EMOJI` | Emoji name to react with for approval (no colons) | `white_check_mark` |
+| `SLACK_POST_VARIANTS` | How many post variants to generate and show (1–5) | `3` |
 | `SLACK_APPROVAL_TIMEOUT_MINUTES` | How long to wait for your reaction before aborting (max 360) | `360` |
 
 > Both `SLACK_BOT_TOKEN` and `SLACK_CHANNEL_ID` must be set to enable the approval gate. If either is missing, posts publish immediately as before.

@@ -4,17 +4,25 @@ import { HttpService } from "@nestjs/axios";
 import { firstValueFrom } from "rxjs";
 import { AppLoggerService } from "../../core/logger/logger.service";
 
-export type ApprovalResult = "approved" | "timeout";
+/** 1-based index of the selected variant, or null if timed out */
+export type ApprovalResult = number | null;
 
-const POLL_INTERVAL_MS = 60_000; // poll every 60 seconds
+export interface PostVariant {
+  linkedInContent: string | null;
+  tweetContent: string | null;
+}
+
+const POLL_INTERVAL_MS = 60_000;
+const OPTION_EMOJIS = ["one", "two", "three", "four", "five"] as const;
+const OPTION_LABELS = [":one:", ":two:", ":three:", ":four:", ":five:"];
 
 @Injectable()
 export class SlackService implements OnModuleInit {
   private readonly botToken: string | null;
   private readonly channelId: string | null;
-  private readonly approveEmoji: string;
   private readonly timeoutMs: number;
   readonly enabled: boolean;
+  readonly variantCount: number;
 
   constructor(
     private readonly config: ConfigService,
@@ -24,18 +32,17 @@ export class SlackService implements OnModuleInit {
     this.logger.setContext(SlackService.name);
     this.botToken = this.config.get<string>("app.slack.botToken") || null;
     this.channelId = this.config.get<string>("app.slack.channelId") || null;
-    this.approveEmoji =
-      this.config.get<string>("app.slack.approveEmoji") || "white_check_mark";
     const timeoutMinutes =
       this.config.get<number>("app.slack.approvalTimeoutMinutes") ?? 360;
     this.timeoutMs = timeoutMinutes * 60 * 1000;
+    this.variantCount = this.config.get<number>("app.slack.postVariants") ?? 3;
     this.enabled = !!(this.botToken && this.channelId);
   }
 
   onModuleInit(): void {
     if (this.enabled) {
       this.logger.log(
-        `Slack approval enabled — channel: ${this.channelId}, timeout: ${this.timeoutMs / 60000}min, approve with :${this.approveEmoji}:`,
+        `Slack approval enabled — channel: ${this.channelId}, variants: ${this.variantCount}, timeout: ${this.timeoutMs / 60000}min`,
       );
     } else {
       this.logger.log(
@@ -46,40 +53,91 @@ export class SlackService implements OnModuleInit {
 
   async postForApproval(params: {
     niche: string;
-    linkedInContent: string | null;
-    tweetContent: string | null;
+    storyTitle: string;
+    variants: PostVariant[];
   }): Promise<{ ts: string }> {
-    const { niche, linkedInContent, tweetContent } = params;
+    const { niche, storyTitle, variants } = params;
     const platforms = [
-      linkedInContent ? "LinkedIn" : null,
-      tweetContent ? "Twitter/X" : null,
+      variants[0]?.linkedInContent ? "LinkedIn" : null,
+      variants[0]?.tweetContent ? "Twitter / X" : null,
     ]
       .filter(Boolean)
-      .join(", ");
+      .join("  ·  ");
 
-    const lines: string[] = [
-      `*New post ready for review*`,
-      `*Niche:* ${niche}   *Platforms:* ${platforms}`,
-      ``,
+    const timeoutMin = this.timeoutMs / 60000;
+    const title = storyTitle.length > 80
+      ? `${storyTitle.slice(0, 77)}...`
+      : storyTitle;
+
+    const reactionHint = OPTION_LABELS.slice(0, variants.length).join("  ");
+
+    const blocks: object[] = [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "📰  New Post Ready for Review", emoji: true },
+      },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*Niche*\n${niche}` },
+          { type: "mrkdwn", text: `*Platforms*\n${platforms}` },
+        ],
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: `*Story*\n_${title}_` },
+      },
     ];
 
-    if (linkedInContent) {
-      lines.push(`*LinkedIn Post:*`, "```", linkedInContent, "```", ``);
-    }
+    variants.forEach((variant, i) => {
+      blocks.push({ type: "divider" });
+      blocks.push({
+        type: "section",
+        text: { type: "mrkdwn", text: `*Option ${OPTION_LABELS[i]}*` },
+      });
 
-    if (tweetContent) {
-      lines.push(`*Twitter/X Post:*`, "```", tweetContent, "```", ``);
-    }
+      if (variant.linkedInContent) {
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*LinkedIn*\n\`\`\`${this.truncate(variant.linkedInContent, 2800)}\`\`\``,
+          },
+        });
+      }
 
-    lines.push(
-      `React with :${this.approveEmoji}: to *publish*. No reaction within ${this.timeoutMs / 60000}min = aborted.`,
-    );
+      if (variant.tweetContent) {
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Twitter / X*\n\`\`\`${this.truncate(variant.tweetContent, 500)}\`\`\``,
+          },
+        });
+      }
+    });
 
-    const text = lines.join("\n");
+    blocks.push({ type: "divider" });
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `:point_right:  React with ${reactionHint} to pick one and publish  ·  No reaction within *${timeoutMin}min* = run aborted`,
+        },
+      ],
+    });
+
     const response = await firstValueFrom(
       this.http.post(
         "https://slack.com/api/chat.postMessage",
-        { channel: this.channelId, text, unfurl_links: false, unfurl_media: false },
+        {
+          channel: this.channelId,
+          text: `New post ready — ${niche} — react ${reactionHint} to pick a variant`,
+          blocks,
+          unfurl_links: false,
+          unfurl_media: false,
+        },
         {
           headers: {
             Authorization: `Bearer ${this.botToken}`,
@@ -94,14 +152,15 @@ export class SlackService implements OnModuleInit {
       throw new Error(`Slack chat.postMessage failed: ${data.error}`);
     }
 
-    this.logger.log(`Post previewed in Slack (ts: ${data.ts})`);
+    this.logger.log(`Post preview sent to Slack (ts: ${data.ts})`);
     return { ts: data.ts! };
   }
 
-  async waitForApproval(ts: string): Promise<ApprovalResult> {
+  async waitForApproval(ts: string, variantCount: number): Promise<ApprovalResult> {
     const deadline = Date.now() + this.timeoutMs;
+    const hint = OPTION_LABELS.slice(0, variantCount).join(" or ");
     this.logger.log(
-      `Waiting for :${this.approveEmoji}: reaction (timeout: ${this.timeoutMs / 60000}min)`,
+      `Waiting for ${hint} reaction (timeout: ${this.timeoutMs / 60000}min)`,
     );
 
     while (Date.now() < deadline) {
@@ -116,19 +175,23 @@ export class SlackService implements OnModuleInit {
         continue;
       }
 
-      if (reactions.some((r) => r.name === this.approveEmoji)) {
-        this.logger.log("Slack approval received ✓");
-        return "approved";
+      const names = new Set(reactions.map((r) => r.name));
+
+      for (let i = 0; i < variantCount; i++) {
+        if (names.has(OPTION_EMOJIS[i])) {
+          this.logger.log(`Option ${i + 1} selected ✓`);
+          return i + 1;
+        }
       }
 
       const remainingMin = Math.round((deadline - Date.now()) / 60_000);
-      this.logger.log(`No approval yet — ~${remainingMin}min remaining`);
+      this.logger.log(`No selection yet — ~${remainingMin}min remaining`);
     }
 
     this.logger.warn(
       `Slack approval timed out after ${this.timeoutMs / 60000}min — aborting publish`,
     );
-    return "timeout";
+    return null;
   }
 
   private async fetchReactions(ts: string): Promise<Array<{ name: string }>> {
@@ -150,6 +213,10 @@ export class SlackService implements OnModuleInit {
     }
 
     return data.message?.reactions ?? [];
+  }
+
+  private truncate(text: string, max: number): string {
+    return text.length > max ? `${text.slice(0, max - 3)}...` : text;
   }
 
   private sleep(ms: number): Promise<void> {

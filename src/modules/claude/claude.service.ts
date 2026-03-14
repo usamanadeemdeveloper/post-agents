@@ -57,6 +57,16 @@ export class ClaudeService implements OnModuleInit {
     date: string,
     platforms: { linkedin: boolean; twitter: boolean },
   ): Promise<{ linkedInContent: string | null; tweetContent: string | null }> {
+    const variants = await this.generatePostVariants(1, stories, date, platforms);
+    return variants[0];
+  }
+
+  async generatePostVariants(
+    count: number,
+    stories: RealNewsItem[],
+    date: string,
+    platforms: { linkedin: boolean; twitter: boolean },
+  ): Promise<Array<{ linkedInContent: string | null; tweetContent: string | null }>> {
     const topStory = stories[0];
     const otherHeadlines = stories
       .slice(1, 4)
@@ -64,49 +74,56 @@ export class ClaudeService implements OnModuleInit {
       .join("\n");
     const style = this.resolvePostingStyle();
     const tone = this.config.get<string>("app.prompts.defaultTone", "");
+
+    // Build grounding once — shared across all variants
     const grounding = await this.buildStoryGrounding(topStory);
     this.assertNicheFit(topStory, grounding);
     const factualAnchors = this.formatGroundingAnchors(grounding);
-
-    const [linkedInContent, tweetContent] = await Promise.all([
-      platforms.linkedin
-        ? this.generateValidatedPost("linkedin", {
-          date,
-          topStory,
-          otherHeadlines,
-          style,
-          tone,
-          factualAnchors,
-          grounding,
-        })
-        : Promise.resolve(null),
-      platforms.twitter
-        ? this.generateValidatedPost("twitter", {
-          date,
-          topStory,
-          otherHeadlines: "",
-          style,
-          tone,
-          factualAnchors,
-          grounding,
-        })
-        : Promise.resolve(null),
-    ]);
 
     const footerOpts = this.authorName || this.agentName
       ? { author: this.authorName || undefined, agentName: this.agentName || undefined }
       : undefined;
 
-    return {
-      linkedInContent:
-        linkedInContent && footerOpts
-          ? appendPostFooter(linkedInContent, footerOpts)
-          : linkedInContent,
-      tweetContent:
-        tweetContent && footerOpts
-          ? appendPostFooter(tweetContent, footerOpts)
-          : tweetContent,
-    };
+    // Generate all variants in parallel
+    return Promise.all(
+      Array.from({ length: count }, async () => {
+        const [linkedInContent, tweetContent] = await Promise.all([
+          platforms.linkedin
+            ? this.generateValidatedPost("linkedin", {
+                date,
+                topStory,
+                otherHeadlines,
+                style,
+                tone,
+                factualAnchors,
+                grounding,
+              })
+            : Promise.resolve(null),
+          platforms.twitter
+            ? this.generateValidatedPost("twitter", {
+                date,
+                topStory,
+                otherHeadlines: "",
+                style,
+                tone,
+                factualAnchors,
+                grounding,
+              })
+            : Promise.resolve(null),
+        ]);
+
+        return {
+          linkedInContent:
+            linkedInContent && footerOpts
+              ? appendPostFooter(linkedInContent, footerOpts)
+              : linkedInContent,
+          tweetContent:
+            tweetContent && footerOpts
+              ? appendPostFooter(tweetContent, footerOpts)
+              : tweetContent,
+        };
+      }),
+    );
   }
 
   generateDeterministicFallbackPosts(
