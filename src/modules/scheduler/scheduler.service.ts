@@ -99,25 +99,65 @@ export class SchedulerService {
 
     // Step 1 — fetch real news
     const storyCount = this.config.get<number>("app.news.storyCount") ?? 10;
-    const stories = await this.news.fetchTopTechStories(storyCount);
+    let stories: RealNewsItem[];
+    try {
+      stories = await this.news.fetchTopTechStories(storyCount);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `News fetch failed. Falling back to guaranteed source packs. Reason: ${message}`,
+      );
+      stories = this.news.getGuaranteedFallbackStories(storyCount);
+    }
     const postHistory = await this.loadPostHistory();
-    const freshStories = this.excludePreviouslyPostedStories(
+    let freshStories = this.excludePreviouslyPostedStories(
       stories,
       postHistory,
     );
 
     if (freshStories.length === 0) {
-      throw new Error(
-        "All candidate stories were already posted previously. No new story available.",
+      this.logger.warn(
+        "All candidate stories were already posted previously. Falling back to evergreen rotation.",
+      );
+      freshStories = this.excludePreviouslyPostedStories(
+        this.news.getGuaranteedFallbackStories(storyCount),
+        postHistory,
       );
     }
 
+    if (freshStories.length === 0) {
+      this.logger.warn(
+        "Fallback stories were also previously posted. Reusing fallback stories to avoid an empty run.",
+      );
+      freshStories = this.news.getGuaranteedFallbackStories(storyCount);
+    }
+
     const selectedStories = this.selectPrimaryStoryForRun(freshStories, runAt);
-    const generation = await this.generateNonDuplicateContent(
-      selectedStories,
-      date,
-      postHistory,
-    );
+    let generation;
+    try {
+      generation = await this.generateNonDuplicateContent(
+        selectedStories,
+        date,
+        postHistory,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const fallbackStory = selectedStories[0] ?? this.news.getGuaranteedFallbackStories(1)[0];
+      this.logger.warn(
+        `Claude generation failed. Publishing deterministic fallback content instead. Reason: ${message}`,
+      );
+      generation = {
+        ...this.claude.generateDeterministicFallbackPosts(
+          fallbackStory,
+          date,
+          {
+            linkedin: this.linkedinEnabled,
+            twitter: this.twitterEnabled,
+          },
+        ),
+        story: fallbackStory,
+      };
+    }
     const linkedInContent = generation.linkedInContent;
     const tweetContent = generation.tweetContent;
     const chosenStory = generation.story;

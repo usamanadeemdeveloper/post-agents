@@ -7,6 +7,7 @@ import { SocialPostResult } from "../../shared/interfaces/social-post.interface"
 @Injectable()
 export class TwitterService implements OnModuleInit {
   private client: TwitterApi;
+  private publishRetryAttempts: number;
 
   constructor(
     private readonly config: ConfigService,
@@ -34,34 +35,49 @@ export class TwitterService implements OnModuleInit {
       accessToken,
       accessSecret,
     });
+    this.publishRetryAttempts =
+      this.config.get<number>("app.scheduler.publishRetryAttempts") ?? 3;
     this.logger.log("Twitter/X client initialized");
   }
 
   async tweet(content: string): Promise<SocialPostResult> {
     this.logger.log("Publishing tweet to X...");
 
-    try {
-      const rwClient = this.client.readWrite;
-      const { data } = await rwClient.v2.tweet(content);
+    let lastError = "unknown error";
+    for (let attempt = 1; attempt <= this.publishRetryAttempts; attempt += 1) {
+      try {
+        const rwClient = this.client.readWrite;
+        const { data } = await rwClient.v2.tweet(content);
 
-      this.logger.log(`Tweet published. ID: ${data.id}`);
+        this.logger.log(`Tweet published. ID: ${data.id}`);
 
-      return {
-        platform: "twitter",
-        success: true,
-        postId: data.id,
-        postedAt: new Date(),
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error("Failed to publish tweet", message);
-
-      return {
-        platform: "twitter",
-        success: false,
-        error: message,
-        postedAt: new Date(),
-      };
+        return {
+          platform: "twitter",
+          success: true,
+          postId: data.id,
+          postedAt: new Date(),
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Twitter publish attempt ${attempt}/${this.publishRetryAttempts} failed: ${lastError}`,
+        );
+        if (attempt < this.publishRetryAttempts) {
+          await this.delay(1000 * attempt);
+        }
+      }
     }
+
+    this.logger.error("Failed to publish tweet", lastError);
+    return {
+      platform: "twitter",
+      success: false,
+      error: lastError,
+      postedAt: new Date(),
+    };
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

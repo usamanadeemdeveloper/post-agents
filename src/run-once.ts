@@ -1,4 +1,5 @@
 import { NestFactory } from "@nestjs/core";
+import { ConfigService } from "@nestjs/config";
 import { AppModule } from "./app.module";
 import { SchedulerService } from "./modules/scheduler/scheduler.service";
 
@@ -14,6 +15,7 @@ async function run() {
   });
 
   const scheduler = app.get(SchedulerService);
+  const config = app.get(ConfigService);
 
   try {
     const result = await scheduler.triggerManually();
@@ -29,9 +31,21 @@ async function run() {
       `Twitter  : ${tw.success ? `✓ post ID ${tw.postId}` : `✗ ${tw.error}`}`,
     );
 
-    // Exit 1 if both platforms failed so GitHub Actions marks the run as failed
+    const anyPublished = li.success || tw.success;
+    console.log(`PUBLISHED_ANY=${anyPublished ? "true" : "false"}`);
+
+    // By default we soft-fail publish errors so the agent run still completes.
+    const failOnPublishFailure =
+      config.get<boolean>("app.scheduler.failOnPublishFailure") ?? false;
     if (!li.success && !tw.success) {
-      process.exit(1);
+      console.warn(
+        failOnPublishFailure
+          ? "Both platforms failed and strict failure is enabled."
+          : "Both platforms failed, but strict failure is disabled.",
+      );
+      if (failOnPublishFailure) {
+        process.exit(1);
+      }
     }
   } finally {
     await app.close();

@@ -1,6 +1,6 @@
 # post-agents
 
-Automated LinkedIn (and optionally X/Twitter) posting agent for software architects targeting investors and clients in **ecommerce, hospitality, and healthcare**. Researches real trending discussions across Reddit, Google News, and NewsAPI — then uses Claude AI to write authoritative, fact-only posts on a configurable schedule.
+Automated LinkedIn (and optionally X/Twitter) posting agent for software architects targeting investors and clients in **ecommerce, hospitality, and healthcare**. It researches recent source-backed stories, validates niche fit and factual support, and falls back to vetted evergreen source packs when live discovery is weak.
 
 **Runs completely free** via GitHub Actions. No server required. Everything is controlled via GitHub Secrets — no code changes needed to change behaviour.
 
@@ -9,27 +9,38 @@ Automated LinkedIn (and optionally X/Twitter) posting agent for software archite
 ## How it works
 
 ```
-Daily at 9:00 AM UTC — check if POST_INTERVAL_DAYS have elapsed since last post
+Daily at 9:00 AM UTC — check if POST_INTERVAL_DAYS have elapsed since last successful post
         ↓ (skip if not enough time has passed)
-Fetch trending stories in parallel:
-  ├── Reddit        (subreddits from NEWS_NICHE profile)
+Fetch recent stories in parallel:
   ├── Google News RSS  (queries from NEWS_NICHE profile)
-  └── NewsAPI       (queries from NEWS_NICHE profile, optional)
+  ├── NewsAPI          (queries from NEWS_NICHE profile, optional)
+  ├── Reddit           (developer niche only / community-enabled profiles)
+  └── Dev.to           (developer niche only / community-enabled profiles)
         ↓
-Merge → deduplicate → niche keyword score → top candidates
+Merge → deduplicate → source/domain filtering → niche keyword score → top candidates
         ↓
 Fetch full article text for each candidate
-  └── Fallback: use description snippet if scraping fails
+  └── No summary-snippet fallback — only full text or curated evergreen packs
+        ↓
+Validate niche alignment on fetched content
         ↓
 Claude AI generates posts in parallel:
   ├── LinkedIn post  (style set by POSTING_STYLE)
   └── X/Twitter post (same style, shorter format)
         ↓
+Claude validates / repairs generated output against factual anchors
+        ↓
+If live discovery fails:
+  ├── Use curated evergreen source packs
+  └── If Claude generation still fails, use deterministic fallback post text
+        ↓
 Publish to configured platforms in parallel:
   ├── LinkedIn  (UGC Posts API)  — if credentials set
   └── X/Twitter (twitter-api-v2) — if credentials set
         ↓
-Persist .last-post-date → GitHub Actions commits it back to repo
+Retry publish attempts up to PUBLISH_RETRY_ATTEMPTS
+        ↓
+Persist .last-post-date only if at least one platform actually published
 ```
 
 > At least one platform must be configured. If only LinkedIn credentials are set, Twitter is silently skipped — and vice versa.
@@ -51,7 +62,7 @@ Persist .last-post-date → GitHub Actions commits it back to repo
 1. Go to [newsapi.org](https://newsapi.org) → **Get API Key** (free, 100 req/day)
 2. Copy it → `NEWSAPI_KEY`
 
-> Without this the pipeline still works via Reddit + Google News.
+> Without this the pipeline still works via Google News discovery and the fallback layers.
 
 ---
 
@@ -124,6 +135,7 @@ npm install
 # 2. Configure environment
 cp .env.example .env
 # Fill in at minimum: ANTHROPIC_API_KEY, LINKEDIN_ACCESS_TOKEN, LINKEDIN_PERSON_URN
+# Recommended for first run: NEWS_NICHE=business-architect, POSTING_STYLE=business-architect
 
 # 3. Test LinkedIn credentials first (no Claude credits needed)
 npm run test:linkedin
@@ -159,7 +171,7 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | Secret | Description | Default |
 |---|---|---|
 | `CLAUDE_MODEL` | Claude model to use | `claude-sonnet-4-6` |
-| `NEWSAPI_KEY` | NewsAPI key — adds a third news source | NewsAPI skipped |
+| `NEWSAPI_KEY` | NewsAPI key — adds another discovery source | NewsAPI skipped |
 | `POST_INTERVAL_DAYS` | Days between posts (`1`, `3`, `7`, etc.) | `3` |
 
 #### Content & persona
@@ -167,8 +179,10 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | Secret | Description | Default |
 |---|---|---|
 | `NEWS_NICHE` | Research focus: `business-architect` (ecommerce/healthcare/hospitality) or `developer` | `business-architect` |
-| `NEWS_STORY_COUNT` | How many stories to fetch per run (1–20) | `10` |
-| `POSTING_STYLE` | Post persona: `business-architect`, `default`, `technical`, `marketing`, `casual` | `default` |
+| `NEWS_STORY_COUNT` | How many candidate stories to fetch per run (1–20) | `10` |
+| `NEWS_RESEARCH_WINDOW_DAYS` | Recent-content window for discovery and ranking | `30` |
+| `ALLOW_EVERGREEN_FALLBACK` | Set to `false` to disable curated evergreen fallback packs | `true` |
+| `POSTING_STYLE` | Post persona: `business-architect`, `default`, `technical`, `marketing`, `casual` | niche-driven (`business-architect` for business niche, `technical` for developer niche) |
 | `DEFAULT_TONE` | Free-text tone hint injected into every prompt e.g. `"authoritative and client-facing"` | none |
 | `LINKEDIN_POST_LENGTH` | Override LinkedIn length hint e.g. `800–1100 characters` | style defaults |
 | `TWITTER_POST_LENGTH` | Override Twitter length hint e.g. `200 and 220 characters` | style defaults |
@@ -194,16 +208,20 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | Secret | Description | Default |
 |---|---|---|
 | `CONTENT_SIMILARITY_THRESHOLD` | Dedup strictness `0.0`–`1.0` | `0.8` |
+| `PUBLISH_RETRY_ATTEMPTS` | Publish retry attempts per platform | `3` |
+| `FAIL_ON_PUBLISH_FAILURE` | Set to `true` to make the run fail when all configured platforms reject the post | `false` |
 | `ENABLE_CLAUDE_BOT` | Set to `'false'` to disable the `@claude` mention bot workflow | enabled |
 | `ENABLE_PR_REVIEW` | Set to `'false'` to disable auto PR review workflow | enabled |
 
 ### Step 3 — Done
 
-The workflow runs daily and posts whenever `POST_INTERVAL_DAYS` have elapsed since the last post.
+The workflow runs daily and posts whenever `POST_INTERVAL_DAYS` have elapsed since the last successful publish.
 
 To trigger manually anytime: **Actions tab → Tech Post → Run workflow**
 
 Use the **force** option in the manual trigger to post immediately regardless of the interval.
+
+> If your target branch is protected with “changes must be made through a pull request”, the workflow may be unable to persist `.last-post-date` and `.post-history.json`. Either allow GitHub Actions to bypass that rule or run the posting workflow on a branch where the bot can push state updates.
 
 ---
 
@@ -256,7 +274,13 @@ Set the `POST_INTERVAL_DAYS` GitHub Secret to any number of days. No code change
 → Add credits at [console.anthropic.com](https://console.anthropic.com) → Plans & Billing.
 
 **No stories found / all skipped**
-→ All fetched articles were blocked by paywalls. The pipeline automatically falls back to the article description snippet. Add `NEWSAPI_KEY` to increase source coverage.
+→ This usually means the fetched stories were off-niche, blocked, or had no usable full text. Increase `NEWS_RESEARCH_WINDOW_DAYS`, add `NEWSAPI_KEY`, or leave `ALLOW_EVERGREEN_FALLBACK=true` so the workflow can fall back to curated source packs.
+
+**`"FAIL_ON_PUBLISH_FAILURE" must be a boolean`**
+→ Set the secret to `true` or `false` exactly. No quotes, no extra spaces.
+
+**Protected branch push rejected by GitHub**
+→ Your repo likely blocks direct pushes and requires PRs. The posting workflow needs permission to commit `.last-post-date` and `.post-history.json` back to the branch if you want interval/history persistence.
 
 **`No social platform configured`**
 → Neither LinkedIn nor Twitter credentials are set. Configure at least one platform.
