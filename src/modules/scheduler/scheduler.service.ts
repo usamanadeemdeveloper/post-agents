@@ -427,14 +427,27 @@ export class SchedulerService {
       ];
       const candidateStory = candidateStories[0];
 
-      const { linkedInContent, tweetContent } = await this.claude.generatePosts(
-        candidateStories,
-        date,
-        {
-          linkedin: this.linkedinEnabled,
-          twitter: this.twitterEnabled,
-        },
-      );
+      let linkedInContent: string | null;
+      let tweetContent: string | null;
+
+      try {
+        const generated = await this.claude.generatePosts(
+          candidateStories,
+          date,
+          {
+            linkedin: this.linkedinEnabled,
+            twitter: this.twitterEnabled,
+          },
+        );
+        linkedInContent = generated.linkedInContent;
+        tweetContent = generated.tweetContent;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Generation failed for "${candidateStory.title}". Trying next candidate. Reason: ${message}`,
+        );
+        continue;
+      }
 
       const duplicateLinkedIn =
         !!linkedInContent &&

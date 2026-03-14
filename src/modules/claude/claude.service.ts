@@ -252,7 +252,7 @@ ${story.articleText ?? ""}`;
     const grounding = await this.askForJson<StoryGrounding>({
       prompt,
       maxTokens: 400,
-    });
+    }, "story grounding");
 
     return {
       productOrFeature: grounding.productOrFeature?.trim() ?? "",
@@ -325,7 +325,7 @@ ${draft}`;
     return this.askForJson<GeneratedPostReview>({
       prompt,
       maxTokens: platform === "linkedin" ? 900 : 500,
-    });
+    }, `${platform} post review`);
   }
 
   private findMissingAnchors(content: string, grounding: StoryGrounding): string[] {
@@ -377,9 +377,28 @@ ${draft}`;
 
   private async askForJson<T>(
     payload: ClaudeResearchPayload,
+    context: string,
   ): Promise<T> {
     const response = await this.ask(payload);
-    return this.parseJson<T>(response.content);
+
+    try {
+      return this.parseJson<T>(response.content);
+    } catch (error) {
+      this.logger.warn(`Claude returned malformed JSON for ${context}; retrying once`);
+
+      const repaired = await this.ask({
+        prompt: `Convert the content below into valid JSON only. Do not add commentary.
+
+TARGET:
+${context}
+
+CONTENT:
+${response.content}`,
+        maxTokens: payload.maxTokens ?? 1024,
+      });
+
+      return this.parseJson<T>(repaired.content);
+    }
   }
 
   private parseJson<T>(raw: string): T {
