@@ -4,6 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { firstValueFrom } from "rxjs";
 import { AppLoggerService } from "../../core/logger/logger.service";
 import { RedditPost, RealNewsItem } from "./interfaces/news-item.interface";
+import { evergreenSourcePacksFor } from "./evergreen-source-packs";
 import { NicheProfile, resolveNiche } from "./news-niches";
 
 const REDDIT_BASE = "https://www.reddit.com";
@@ -62,6 +63,8 @@ const TRUSTED_EDITORIAL_DOMAINS = [
 export class NewsService {
   private readonly newsApiKey: string;
   private readonly niche: NicheProfile;
+  private readonly researchWindowDays: number;
+  private readonly allowEvergreenFallback: boolean;
 
   constructor(
     private readonly http: HttpService,
@@ -71,6 +74,10 @@ export class NewsService {
     this.logger.setContext(NewsService.name);
     this.newsApiKey = this.config.get<string>("app.newsapi.apiKey") ?? "";
     this.niche = resolveNiche(this.config.get<string>("app.news.niche"));
+    this.researchWindowDays =
+      this.config.get<number>("app.news.researchWindowDays") ?? 30;
+    this.allowEvergreenFallback =
+      this.config.get<boolean>("app.news.allowEvergreenFallback") ?? true;
     this.logger.log(`News niche: ${this.config.get<string>("app.news.niche") ?? "business-architect"}`);
   }
 
@@ -95,17 +102,35 @@ export class NewsService {
       `Raw items — Reddit: ${redditItems.length} | Google News: ${googleItems.length} | NewsAPI: ${newsApiItems.length} | Dev.to: ${devToItems.length}`,
     );
 
-    // Merge, deduplicate, drop items older than 7 days, then rank by:
+    // Merge, deduplicate, drop items older than the research window, then rank by:
     //   relevance × recencyBoost × popularityBoost
-    // This ensures posts are both recent AND engaging — not just one or the other.
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    // This ensures posts are recent, but not so fresh that quality collapses.
+    const cutoff = Date.now() - this.researchWindowDays * 24 * 60 * 60 * 1000;
     const seen = new Set<string>();
+    const skipCounts = {
+      duplicateOrMissingUrl: 0,
+      blockedDomain: 0,
+      olderThanWindow: 0,
+      lowRelevance: 0,
+      fetchFailed: 0,
+      languageMismatch: 0,
+      nicheMismatch: 0,
+    };
     const merged = [...redditItems, ...googleItems, ...newsApiItems, ...devToItems]
       .filter((item) => {
-        if (!item.url || seen.has(item.url)) return false;
-        if (this.isBlockedDomain(item.url)) return false;
+        if (!item.url || seen.has(item.url)) {
+          skipCounts.duplicateOrMissingUrl += 1;
+          return false;
+        }
+        if (this.isBlockedDomain(item.url)) {
+          skipCounts.blockedDomain += 1;
+          return false;
+        }
         seen.add(item.url);
-        if (item.publishedAt && new Date(item.publishedAt).getTime() < cutoff) return false;
+        if (item.publishedAt && new Date(item.publishedAt).getTime() < cutoff) {
+          skipCounts.olderThanWindow += 1;
+          return false;
+        }
         return true;
       })
       .map((item) => ({
@@ -113,9 +138,13 @@ export class NewsService {
         _relevance: this.relevanceScore(item.title),
         _combined: this.combinedScore(item),
       }))
-      .filter((item) => item._relevance > 0)
+      .filter((item) => {
+        const keep = item._relevance > 0;
+        if (!keep) skipCounts.lowRelevance += 1;
+        return keep;
+      })
       .sort((a, b) => b._combined - a._combined)
-      .slice(0, count * 4); // top candidates before article fetch
+      .slice(0, count * 10); // wider candidate pool improves hit rate for full-text fetches
 
     if (merged.length === 0) {
       throw new Error("No niche-relevant stories found across all sources");
@@ -158,6 +187,7 @@ export class NewsService {
           continue;
         }
         this.logger.warn(`Skipping "${item.title}" — Dev.to markdown unavailable`);
+        skipCounts.fetchFailed += 1;
         continue;
       }
 
@@ -174,18 +204,51 @@ export class NewsService {
         });
       } else {
         this.logger.warn(`Skipping "${item.title}" — could not fetch full article text`);
+        skipCounts.fetchFailed += 1;
       }
     }
 
     if (withContent.length === 0) {
-      throw new Error(
-        "Could not get full article content for any story",
+      this.logger.warn(
+        `No fetched full-text stories available. blocked=${skipCounts.blockedDomain}, fetchFailed=${skipCounts.fetchFailed}, lowRelevance=${skipCounts.lowRelevance}, olderThanWindow=${skipCounts.olderThanWindow}`,
       );
+      if (this.allowEvergreenFallback) {
+        const evergreenStories = this.getEvergreenFallbackStories(count);
+        if (evergreenStories.length > 0) {
+          this.logger.log(
+            `Using ${evergreenStories.length} evergreen source pack(s) for niche "${this.niche.name}"`,
+          );
+          return evergreenStories;
+        }
+      }
+      throw new Error("Could not get full article content for any story");
     }
 
-    const nicheAlignedStories = withContent.filter((item) => this.isNicheAligned(item));
+    const englishStories = withContent.filter((item) => {
+      const english = this.isEnglishContent(item);
+      if (!english) skipCounts.languageMismatch += 1;
+      return english;
+    });
+
+    const nicheAlignedStories = englishStories.filter((item) => {
+      const aligned = this.isNicheAligned(item);
+      if (!aligned) skipCounts.nicheMismatch += 1;
+      return aligned;
+    });
 
     if (nicheAlignedStories.length === 0) {
+      this.logger.warn(
+        `Fetched stories failed validation. languageMismatch=${skipCounts.languageMismatch}, nicheMismatch=${skipCounts.nicheMismatch}`,
+      );
+      if (this.allowEvergreenFallback) {
+        const evergreenStories = this.getEvergreenFallbackStories(count);
+        if (evergreenStories.length > 0) {
+          this.logger.log(
+            `Using ${evergreenStories.length} evergreen source pack(s) after niche validation removed all fetched stories`,
+          );
+          return evergreenStories;
+        }
+      }
       throw new Error("No fetched stories matched the configured niche after content validation");
     }
 
@@ -203,6 +266,18 @@ export class NewsService {
     );
 
     return rankedStories;
+  }
+
+  getGuaranteedFallbackStories(count = 5): RealNewsItem[] {
+    const fallbackStories = evergreenSourcePacksFor(this.niche.name)
+      .filter((item) => this.isNicheAligned(item))
+      .slice(0, count);
+
+    if (fallbackStories.length === 0) {
+      throw new Error(`No evergreen fallback stories configured for niche "${this.niche.name}"`);
+    }
+
+    return fallbackStories;
   }
 
   // ─── Reddit ─────────────────────────────────────────────────────────────────
@@ -350,7 +425,7 @@ export class NewsService {
             q: query,
             language: "en",
             sortBy: "publishedAt",
-            from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+              from: new Date(Date.now() - this.researchWindowDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
             pageSize: 10,
             apiKey: this.newsApiKey,
           },
@@ -507,8 +582,29 @@ export class NewsService {
     return this.relevanceScore(text) > 0;
   }
 
+  private isEnglishContent(item: RealNewsItem): boolean {
+    const sample = `${item.title} ${item.articleText ?? ""}`.toLowerCase().slice(0, 3000);
+    if (!sample.trim()) return true;
+
+    const englishSignals = this.countMatches(sample, [
+      " the ", " and ", " for ", " with ", " this ", " that ", " from ", " into ",
+      "software", "platform", "system", "build", "developer", "business", "engineering",
+    ]);
+    const portugueseSignals = this.countMatches(sample, [
+      " uma ", " para ", " com ", " que ", " como ", " mais ", " uma ", " este ",
+      " essa ", " isso ", " onde ", " ainda ", " deploy ", " usando ", " branch ",
+      " times ", " fluxo ", " curva de aprendizado", " além de",
+    ]) + this.countRegexMatches(sample, /[ãõçáéíóúâêôà]/g);
+
+    return englishSignals >= portugueseSignals;
+  }
+
   private countMatches(text: string, terms: string[]): number {
     return terms.filter((term) => text.includes(term)).length;
+  }
+
+  private countRegexMatches(text: string, pattern: RegExp): number {
+    return text.match(pattern)?.length ?? 0;
   }
 
   private sourceAuthorityBoost(item: RealNewsItem): number {
@@ -534,14 +630,16 @@ export class NewsService {
   private combinedScore(item: RealNewsItem): number {
     const relevance = this.relevanceScore(item.title);
 
-    // Recency boost: 1.0 = today, 0.6 = 3 days ago, 0.3 = 7 days ago
-    let recencyBoost = 0.3;
+    // Recency still matters, but we deliberately allow a wider research window for better quality.
+    let recencyBoost = 0.35;
     if (item.publishedAt) {
       const ageMs = Date.now() - new Date(item.publishedAt).getTime();
       const ageDays = ageMs / (24 * 60 * 60 * 1000);
       if (ageDays <= 1) recencyBoost = 1.0;
-      else if (ageDays <= 3) recencyBoost = 0.6;
-      else if (ageDays <= 5) recencyBoost = 0.4;
+      else if (ageDays <= 3) recencyBoost = 0.85;
+      else if (ageDays <= 7) recencyBoost = 0.72;
+      else if (ageDays <= 15) recencyBoost = 0.58;
+      else if (ageDays <= 30) recencyBoost = 0.46;
     }
 
     // Popularity boost from Reddit score + comments (capped to avoid one viral post dominating)
@@ -632,6 +730,10 @@ export class NewsService {
       if (fragment) matches.push(fragment);
     }
     return matches;
+  }
+
+  private getEvergreenFallbackStories(count: number): RealNewsItem[] {
+    return this.getGuaranteedFallbackStories(count);
   }
 
   private htmlToText(html: string): string {

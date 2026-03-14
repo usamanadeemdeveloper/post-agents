@@ -17,6 +17,7 @@ The tone must be:
 - Still insightful: behind the casual tone is real expertise
 
 Write ONLY from what you read below — never add facts not present in the content.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S TRENDING TOPIC:
 Title: ${topStory.title}
@@ -68,6 +69,7 @@ export function casualTwitterPrompt(params: PostPromptParams): string {
   return `You are writing a tweet on behalf of a software architect sharing a casual personal take on developer news. The audience follows them for genuine engineering insights.
 
 Write ONLY from what you read below — never invent details.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S DATE: ${date}
 Title: ${topStory.title}
