@@ -29,6 +29,14 @@ export default registerAs("app", () => ({
     cronSchedule: process.env.CRON_SCHEDULE,
     postVariationSeed: process.env.POST_VARIATION_SEED,
     postHistoryFile: process.env.POST_HISTORY_FILE,
+    publishRetryAttempts: (() => {
+      const raw = process.env.PUBLISH_RETRY_ATTEMPTS;
+      if (!raw) return 3;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) && parsed >= 1 ? parsed : 3;
+    })(),
+    failOnPublishFailure:
+      (process.env.FAIL_ON_PUBLISH_FAILURE ?? "false").toLowerCase() === "true",
     contentSimilarityThreshold: (() => {
       const raw = process.env.CONTENT_SIMILARITY_THRESHOLD;
       if (!raw) return 0.8;
@@ -58,5 +66,13 @@ export default registerAs("app", () => ({
       const parsed = parseInt(raw, 10);
       return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
     })(),
+    researchWindowDays: (() => {
+      const raw = process.env.NEWS_RESEARCH_WINDOW_DAYS;
+      if (!raw) return 30;
+      const parsed = parseInt(raw, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 30;
+    })(),
+    allowEvergreenFallback:
+      (process.env.ALLOW_EVERGREEN_FALLBACK ?? 'true').toLowerCase() !== 'false',
   },
 }));

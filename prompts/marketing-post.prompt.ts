@@ -17,6 +17,7 @@ The tone must be:
 - Clear and direct: avoid jargon-heavy phrasing
 
 Write ONLY from what you read below — never add facts not present in the content.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S TRENDING TOPIC:
 Title: ${topStory.title}
@@ -68,6 +69,7 @@ export function marketingTwitterPrompt(params: PostPromptParams): string {
   return `You are writing a tweet on behalf of an engineering consultancy. The audience is founders, product leaders, and developers focused on building winning products.
 
 Write ONLY from what you read below — never invent details.
+Write in clear natural English only. If the source material is in another language, translate the meaning into English without adding or changing facts.
 
 TODAY'S DATE: ${date}
 Title: ${topStory.title}
