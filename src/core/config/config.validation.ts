@@ -28,6 +28,8 @@ export const configValidationSchema = Joi.object({
   CRON_SCHEDULE: Joi.string().default("0 9 * * *"),
   POST_VARIATION_SEED: Joi.string().allow("").optional(),
   POST_HISTORY_FILE: Joi.string().allow("").optional(),
+  PUBLISH_RETRY_ATTEMPTS: Joi.number().integer().min(1).max(5).optional(),
+  FAIL_ON_PUBLISH_FAILURE: Joi.boolean().optional(),
   CONTENT_SIMILARITY_THRESHOLD: Joi.number().min(0).max(1).default(0.8),
 
   // Prompt configuration
@@ -38,6 +40,8 @@ export const configValidationSchema = Joi.object({
   POST_AUTHOR_NAME: Joi.string().allow("").optional(),
   POST_AGENT_NAME: Joi.string().allow("").optional(),
   NEWS_STORY_COUNT: Joi.number().integer().min(1).max(20).optional(),
+  NEWS_RESEARCH_WINDOW_DAYS: Joi.number().integer().min(7).max(90).optional(),
+  ALLOW_EVERGREEN_FALLBACK: Joi.boolean().optional(),
   LINKEDIN_POST_LENGTH: Joi.string().allow("").optional(),
   TWITTER_POST_LENGTH: Joi.string().allow("").optional(),
 

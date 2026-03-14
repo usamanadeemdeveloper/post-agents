@@ -96,9 +96,13 @@ jobs:
           echo "  TWITTER tokens           → ${{ secrets.TWITTER_APP_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
           echo "  POST_INTERVAL_DAYS       → ${{ secrets.POST_INTERVAL_DAYS != '' && '✓ set' || '✗ not set (default: 3)' }}"
           echo "  NEWS_NICHE               → ${{ secrets.NEWS_NICHE != '' && '✓ set' || '✗ not set (default: business-architect)' }}"
-          echo "  POSTING_STYLE            → ${{ secrets.POSTING_STYLE != '' && '✓ set' || '✗ not set (default: default)' }}"
+          echo "  POSTING_STYLE            → ${{ secrets.POSTING_STYLE != '' && '✓ set' || '✗ not set (default: niche-driven)' }}"
           echo "  DEFAULT_TONE             → ${{ secrets.DEFAULT_TONE != '' && '✓ set' || '✗ not set (optional)' }}"
           echo "  POST_AUTHOR_NAME         → ${{ secrets.POST_AUTHOR_NAME != '' && '✓ set' || '✗ not set (default: PostAgent)' }}"
+          echo "  NEWS_RESEARCH_WINDOW_DAYS → ${{ secrets.NEWS_RESEARCH_WINDOW_DAYS != '' && '✓ set' || '✗ not set (default: 30)' }}"
+          echo "  ALLOW_EVERGREEN_FALLBACK → ${{ secrets.ALLOW_EVERGREEN_FALLBACK != '' && '✓ set' || '✗ not set (default: true)' }}"
+          echo "  PUBLISH_RETRY_ATTEMPTS   → ${{ secrets.PUBLISH_RETRY_ATTEMPTS != '' && '✓ set' || '✗ not set (default: 3)' }}"
+          echo "  FAIL_ON_PUBLISH_FAILURE  → ${{ secrets.FAIL_ON_PUBLISH_FAILURE != '' && '✓ set' || '✗ not set (default: false)' }}"
           echo "  CONTENT_SIMILARITY_THRESHOLD → ${{ secrets.CONTENT_SIMILARITY_THRESHOLD != '' && '✓ set' || '✗ not set (default: 0.80)' }}"
           echo "  ENABLE_CLAUDE_BOT        → ${{ secrets.ENABLE_CLAUDE_BOT == 'false' && '✗ disabled' || '✓ enabled (default)' }}"
           echo "  ENABLE_PR_REVIEW         → ${{ secrets.ENABLE_PR_REVIEW == 'false' && '✗ disabled' || '✓ enabled (default)' }}"
@@ -128,6 +132,10 @@ jobs:
           DEFAULT_TONE: ${{ secrets.DEFAULT_TONE }}
           NEWS_NICHE: ${{ secrets.NEWS_NICHE }}
           NEWS_STORY_COUNT: ${{ secrets.NEWS_STORY_COUNT }}
+          NEWS_RESEARCH_WINDOW_DAYS: ${{ secrets.NEWS_RESEARCH_WINDOW_DAYS }}
+          ALLOW_EVERGREEN_FALLBACK: ${{ secrets.ALLOW_EVERGREEN_FALLBACK }}
+          PUBLISH_RETRY_ATTEMPTS: ${{ secrets.PUBLISH_RETRY_ATTEMPTS }}
+          FAIL_ON_PUBLISH_FAILURE: ${{ secrets.FAIL_ON_PUBLISH_FAILURE }}
           POST_AUTHOR_NAME: ${{ secrets.POST_AUTHOR_NAME }}
           POST_AGENT_NAME: ${{ secrets.POST_AGENT_NAME }}
           LINKEDIN_POST_LENGTH: ${{ secrets.LINKEDIN_POST_LENGTH }}
