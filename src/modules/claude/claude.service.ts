@@ -109,6 +109,22 @@ export class ClaudeService implements OnModuleInit {
     };
   }
 
+  generateDeterministicFallbackPosts(
+    story: RealNewsItem,
+    date: string,
+    platforms: { linkedin: boolean; twitter: boolean },
+  ): { linkedInContent: string | null; tweetContent: string | null } {
+    const niche = this.config.get<string>("app.news.niche")?.trim() ?? "business-architect";
+    const linkedInContent = platforms.linkedin
+      ? this.appendFooterIfNeeded(this.buildDeterministicLinkedInPost(story, date, niche))
+      : null;
+    const tweetContent = platforms.twitter
+      ? this.appendFooterIfNeeded(this.buildDeterministicTwitterPost(story, date, niche))
+      : null;
+
+    return { linkedInContent, tweetContent };
+  }
+
   private async ask(
     payload: ClaudeResearchPayload,
   ): Promise<ClaudeResearchResponse> {
@@ -141,6 +157,61 @@ export class ClaudeService implements OnModuleInit {
 
     const niche = this.config.get<string>("app.news.niche")?.trim();
     return niche === "developer" ? "technical" : "business-architect";
+  }
+
+  private buildDeterministicLinkedInPost(
+    story: RealNewsItem,
+    date: string,
+    niche: string,
+  ): string {
+    const sentences = this.extractSentences(story.articleText ?? "", 4);
+    const intro = niche === "developer"
+      ? `🛠️ Dev Insight — ${date}`
+      : `💡 Industry Insight — ${date}`;
+    const businessHeader = niche === "developer"
+      ? "Why this matters for builders:"
+      : "What this means for your business:";
+    const hashtags = niche === "developer"
+      ? "#SoftwareEngineering #PlatformEngineering #DeveloperExperience #Architecture"
+      : "#EcommerceTech #HealthcareIT #HospitalityTech #SoftwareArchitecture #DigitalTransformation";
+
+    const lines = [
+      intro,
+      "",
+      sentences[0] || story.title,
+      "",
+      sentences.slice(1, 3).join(" "),
+      "",
+      businessHeader,
+      `• ${sentences[1] || "The source points to a concrete systems or operations pattern worth paying attention to."}`,
+      `• ${sentences[2] || "Teams that ignore this pattern usually create avoidable process and integration friction."}`,
+      `• ${sentences[3] || "The practical move is to design software and workflows around this operating reality instead of treating it as an edge case."}`,
+      "",
+      niche === "developer"
+        ? "How are you handling this in your stack right now?"
+        : "If your operation depends on software around this workflow, is the architecture built to handle it cleanly?",
+      "",
+      `Source: ${story.url}`,
+      "",
+      hashtags,
+    ];
+
+    return lines.filter((line) => line.trim().length > 0 || line === "").join("\n").trim();
+  }
+
+  private buildDeterministicTwitterPost(
+    story: RealNewsItem,
+    date: string,
+    niche: string,
+  ): string {
+    const sentences = this.extractSentences(story.articleText ?? "", 2);
+    const prefix = niche === "developer" ? "🛠️" : "💡";
+    const hashtagLine = niche === "developer"
+      ? "#SoftwareEngineering #Architecture"
+      : "#SoftwareArchitecture #DigitalTransformation";
+
+    const body = `${prefix} ${date} — ${sentences[0] || story.title} ${sentences[1] || ""}`.trim();
+    return `${body}\n${story.url}\n${hashtagLine}`.trim();
   }
 
   private async generateValidatedPost(
@@ -449,5 +520,21 @@ ${response.content}`,
 
   private countOccurrences(text: string, terms: string[]): number {
     return terms.filter((term) => text.includes(term)).length;
+  }
+
+  private extractSentences(text: string, limit: number): string[] {
+    return text
+      .replace(/\s+/g, " ")
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.trim())
+      .filter((sentence) => sentence.length > 0)
+      .slice(0, limit);
+  }
+
+  private appendFooterIfNeeded(content: string): string {
+    const footerOpts = this.authorName || this.agentName
+      ? { author: this.authorName || undefined, agentName: this.agentName || undefined }
+      : undefined;
+    return footerOpts ? appendPostFooter(content, footerOpts) : content;
   }
 }
