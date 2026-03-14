@@ -25,7 +25,7 @@ jobs:
   post:
     name: Research & Post
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 370
     permissions:
       contents: write
 
@@ -106,6 +106,8 @@ jobs:
           echo "  CONTENT_SIMILARITY_THRESHOLD → ${{ secrets.CONTENT_SIMILARITY_THRESHOLD != '' && '✓ set' || '✗ not set (default: 0.80)' }}"
           echo "  ENABLE_CLAUDE_BOT        → ${{ secrets.ENABLE_CLAUDE_BOT == 'false' && '✗ disabled' || '✓ enabled (default)' }}"
           echo "  ENABLE_PR_REVIEW         → ${{ secrets.ENABLE_PR_REVIEW == 'false' && '✗ disabled' || '✓ enabled (default)' }}"
+          echo "  SLACK_BOT_TOKEN          → ${{ secrets.SLACK_BOT_TOKEN != '' && '✓ set' || '✗ not set (no approval gate)' }}"
+          echo "  SLACK_CHANNEL_ID         → ${{ secrets.SLACK_CHANNEL_ID != '' && '✓ set' || '✗ not set' }}"
 
       - name: Install dependencies
         if: steps.interval.outputs.should_run == 'true'
@@ -149,6 +151,10 @@ jobs:
           POST_AGENT_NAME: ${{ secrets.POST_AGENT_NAME }}
           LINKEDIN_POST_LENGTH: ${{ secrets.LINKEDIN_POST_LENGTH }}
           TWITTER_POST_LENGTH: ${{ secrets.TWITTER_POST_LENGTH }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          SLACK_APPROVE_EMOJI: ${{ secrets.SLACK_APPROVE_EMOJI }}
+          SLACK_APPROVAL_TIMEOUT_MINUTES: ${{ secrets.SLACK_APPROVAL_TIMEOUT_MINUTES }}
 
       - name: Persist run state
         if: steps.interval.outputs.should_run == 'true' && steps.post_run.outcome == 'success' && steps.post_run.outputs.published_any == 'true'

@@ -58,6 +58,18 @@ export default registerAs("app", () => ({
     agentName: process.env.POST_AGENT_NAME || '',
   },
 
+  slack: {
+    botToken: process.env.SLACK_BOT_TOKEN || '',
+    channelId: process.env.SLACK_CHANNEL_ID || '',
+    approveEmoji: process.env.SLACK_APPROVE_EMOJI || 'white_check_mark',
+    approvalTimeoutMinutes: (() => {
+      const raw = process.env.SLACK_APPROVAL_TIMEOUT_MINUTES;
+      if (!raw) return 360;
+      const parsed = parseInt(raw, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 360;
+    })(),
+  },
+
   news: {
     niche: process.env.NEWS_NICHE ?? 'business-architect',
     storyCount: (() => {
