@@ -1,8 +1,12 @@
 import { PostPromptParams } from './prompt-params.interface';
 
 export function casualLinkedInPrompt(params: PostPromptParams): string {
-  const { topStory, otherHeadlines, date } = params;
-  const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
+  const { topStory, otherHeadlines, date, factualAnchors, hashtags, postLengthHint } = params;
+  const lengthRule = postLengthHint ?? '700–950 characters';
+  const hashtagRule = hashtags ?? '#Programming #BuildInPublic #DevLife #SoftwareEngineering #AIEngineering';
+  const anchorSection = factualAnchors
+    ? `\nFACTUAL ANCHORS:\n${factualAnchors}\n`
+    : "";
 
   return `You are writing a LinkedIn post on behalf of a software architect sharing a personal take on developer news. The audience is developers and builders who value authentic, conversational insights.
 
@@ -19,8 +23,9 @@ Title: ${topStory.title}
 Source: ${topStory.source}
 URL: ${topStory.url}
 
-${contentLabel}:
+ARTICLE CONTENT:
 ${topStory.articleText}
+${anchorSection}
 
 OTHER TRENDING:
 ${otherHeadlines}
@@ -46,14 +51,19 @@ Source: ${topStory.url}
 
 STRICT RULES:
 - Every fact must come from the content above — nothing invented
-- Total post length: 700–950 characters
-- Hashtags: exactly 3 total, choose from #Programming #BuildInPublic #DevLife #SoftwareEngineering #AIEngineering
+- Use the factual anchors above as hard constraints, not inspiration
+- Total post length: ${lengthRule}
+- Hashtags: use these — ${hashtagRule}
 - Output ONLY the post text`;
 }
 
 export function casualTwitterPrompt(params: PostPromptParams): string {
-  const { topStory, date } = params;
-  const contentLabel = topStory.articleText ? 'ARTICLE CONTENT' : 'ARTICLE SUMMARY';
+  const { topStory, date, factualAnchors, hashtags, postLengthHint } = params;
+  const lengthRule = postLengthHint ?? '200 and 240 characters';
+  const hashtagRule = hashtags ?? '#Programming #BuildInPublic #DevLife #SoftwareEngineering #AIEngineering';
+  const anchorSection = factualAnchors
+    ? `\nFACTUAL ANCHORS:\n${factualAnchors}\n`
+    : "";
 
   return `You are writing a tweet on behalf of a software architect sharing a casual personal take on developer news. The audience follows them for genuine engineering insights.
 
@@ -64,16 +74,18 @@ Title: ${topStory.title}
 Source: ${topStory.source}
 URL: ${topStory.url}
 
-${contentLabel}:
+ARTICLE CONTENT:
 ${topStory.articleText}
+${anchorSection}
 
 Write ONE tweet with a casual, genuine personal reaction or observation from this topic.
 
 STRICT RULES:
 - Start with "💬 ${date} —" then your take
-- The full tweet text (before the URL line) must be between 200 and 240 characters including the date prefix
+- The full tweet text (before the URL line) must be between ${lengthRule} including the date prefix
 - Add the source URL on the last line: ${topStory.url}
-- Include exactly 2 hashtags from: #Programming #BuildInPublic #DevLife #SoftwareEngineering #AIEngineering
+- Hashtags: use these — ${hashtagRule}
+- Use the factual anchors above as hard constraints, not inspiration
 - Every claim must come from the article — do not invent
 - Output ONLY the tweet text and URL, nothing else`;
 }

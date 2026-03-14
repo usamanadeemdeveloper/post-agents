@@ -3,6 +3,7 @@ import { defaultLinkedInPrompt, defaultTwitterPrompt } from './default-post.prom
 import { technicalLinkedInPrompt, technicalTwitterPrompt } from './technical-post.prompt';
 import { marketingLinkedInPrompt, marketingTwitterPrompt } from './marketing-post.prompt';
 import { casualLinkedInPrompt, casualTwitterPrompt } from './casual-post.prompt';
+import { businessArchitectLinkedInPrompt, businessArchitectTwitterPrompt } from './business-architect-post.prompt';
 
 type PromptFn = (params: PostPromptParams) => string;
 
@@ -27,6 +28,10 @@ const PROMPT_REGISTRY: Record<PostingStyle, PromptEntry> = {
   casual: {
     linkedin: casualLinkedInPrompt,
     twitter: casualTwitterPrompt,
+  },
+  'business-architect': {
+    linkedin: businessArchitectLinkedInPrompt,
+    twitter: businessArchitectTwitterPrompt,
   },
 };
 

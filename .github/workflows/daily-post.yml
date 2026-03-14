@@ -1,15 +1,21 @@
-name: Tech Post (Every 3 Days)
+name: Tech Post
 
 on:
-  # Runs every 3 days at 9:00 AM UTC
+  # Fires daily at 9 AM UTC — actual posting interval is controlled by POST_INTERVAL_DAYS secret (default: 3)
   schedule:
-    - cron: '0 9 */3 * *'
+    - cron: '0 9 * * *'
 
-  # Allows you to trigger manually from the GitHub Actions tab anytime
+  # Manual trigger from GitHub Actions tab
   workflow_dispatch:
     inputs:
       debug:
         description: 'Enable verbose debug logging'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      force:
+        description: 'Force post even if interval has not elapsed'
         required: false
         default: 'false'
         type: choice
@@ -23,8 +29,6 @@ jobs:
     permissions:
       contents: write
 
-    # Enable GitHub Actions step debug logging when triggered manually with debug=true
-    # You can also enable it permanently by adding a repo secret: ACTIONS_STEP_DEBUG = true
     env:
       ACTIONS_STEP_DEBUG: ${{ github.event.inputs.debug == 'true' }}
       ACTIONS_RUNNER_DEBUG: ${{ github.event.inputs.debug == 'true' }}
@@ -33,13 +37,51 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check posting interval
+        id: interval
+        run: |
+          INTERVAL="${{ secrets.POST_INTERVAL_DAYS }}"
+          INTERVAL="${INTERVAL:-3}"
+          FORCE="${{ github.event.inputs.force }}"
+
+          echo "POST_INTERVAL_DAYS = $INTERVAL"
+
+          if [ "$FORCE" = "true" ]; then
+            echo "Force flag set — skipping interval check"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ ! -f .last-post-date ]; then
+            echo "No .last-post-date found — first run, proceeding"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST=$(cat .last-post-date | tr -d '[:space:]')
+          LAST_TS=$(date -d "$LAST" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$LAST" +%s 2>/dev/null || echo 0)
+          NOW_TS=$(date +%s)
+          ELAPSED_DAYS=$(( (NOW_TS - LAST_TS) / 86400 ))
+
+          echo "Last post: $LAST ($ELAPSED_DAYS days ago, interval: $INTERVAL)"
+
+          if [ "$ELAPSED_DAYS" -ge "$INTERVAL" ]; then
+            echo "Interval elapsed — proceeding"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Interval not yet elapsed — skipping"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node.js
+        if: steps.interval.outputs.should_run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Print environment info
+        if: steps.interval.outputs.should_run == 'true'
         run: |
           echo "Node version: $(node --version)"
           echo "NPM version:  $(npm --version)"
@@ -48,20 +90,28 @@ jobs:
           echo "Debug mode:   ${{ github.event.inputs.debug || 'false' }}"
           echo "---"
           echo "Secrets configured:"
-          echo "  ANTHROPIC_API_KEY  → ${{ secrets.ANTHROPIC_API_KEY != '' && '✓ set' || '✗ MISSING' }}"
-          echo "  NEWSAPI_KEY        → ${{ secrets.NEWSAPI_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
-          echo "  LINKEDIN tokens    → ${{ secrets.LINKEDIN_ACCESS_TOKEN != '' && '✓ set' || '✗ MISSING' }}"
-          echo "  TWITTER tokens     → ${{ secrets.TWITTER_APP_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
-          echo "  CONTENT_SIMILARITY_THRESHOLD → ${{ secrets.CONTENT_SIMILARITY_THRESHOLD != '' && '✓ set' || '✗ not set (default 0.80)' }}"
+          echo "  ANTHROPIC_API_KEY        → ${{ secrets.ANTHROPIC_API_KEY != '' && '✓ set' || '✗ MISSING' }}"
+          echo "  NEWSAPI_KEY              → ${{ secrets.NEWSAPI_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
+          echo "  LINKEDIN tokens          → ${{ secrets.LINKEDIN_ACCESS_TOKEN != '' && '✓ set' || '✗ MISSING' }}"
+          echo "  TWITTER tokens           → ${{ secrets.TWITTER_APP_KEY != '' && '✓ set' || '✗ not set (optional)' }}"
+          echo "  POST_INTERVAL_DAYS       → ${{ secrets.POST_INTERVAL_DAYS != '' && '✓ set' || '✗ not set (default: 3)' }}"
+          echo "  NEWS_NICHE               → ${{ secrets.NEWS_NICHE != '' && '✓ set' || '✗ not set (default: business-architect)' }}"
+          echo "  POSTING_STYLE            → ${{ secrets.POSTING_STYLE != '' && '✓ set' || '✗ not set (default: default)' }}"
+          echo "  DEFAULT_TONE             → ${{ secrets.DEFAULT_TONE != '' && '✓ set' || '✗ not set (optional)' }}"
+          echo "  POST_AUTHOR_NAME         → ${{ secrets.POST_AUTHOR_NAME != '' && '✓ set' || '✗ not set (default: PostAgent)' }}"
+          echo "  CONTENT_SIMILARITY_THRESHOLD → ${{ secrets.CONTENT_SIMILARITY_THRESHOLD != '' && '✓ set' || '✗ not set (default: 0.80)' }}"
+          echo "  ENABLE_CLAUDE_BOT        → ${{ secrets.ENABLE_CLAUDE_BOT == 'false' && '✗ disabled' || '✓ enabled (default)' }}"
+          echo "  ENABLE_PR_REVIEW         → ${{ secrets.ENABLE_PR_REVIEW == 'false' && '✗ disabled' || '✓ enabled (default)' }}"
 
       - name: Install dependencies
+        if: steps.interval.outputs.should_run == 'true'
         run: npm ci
 
       - name: Run post pipeline
+        if: steps.interval.outputs.should_run == 'true'
         run: npm run trigger
         env:
           NODE_ENV: production
-          # Enable Node.js async stack traces for better error details
           NODE_OPTIONS: '--enable-source-maps'
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -74,22 +124,27 @@ jobs:
           TWITTER_ACCESS_SECRET: ${{ secrets.TWITTER_ACCESS_SECRET }}
           POST_VARIATION_SEED: ${{ github.run_id }}-${{ github.run_attempt }}
           CONTENT_SIMILARITY_THRESHOLD: ${{ secrets.CONTENT_SIMILARITY_THRESHOLD }}
+          POSTING_STYLE: ${{ secrets.POSTING_STYLE }}
+          DEFAULT_TONE: ${{ secrets.DEFAULT_TONE }}
+          NEWS_NICHE: ${{ secrets.NEWS_NICHE }}
+          NEWS_STORY_COUNT: ${{ secrets.NEWS_STORY_COUNT }}
+          POST_AUTHOR_NAME: ${{ secrets.POST_AUTHOR_NAME }}
+          POST_AGENT_NAME: ${{ secrets.POST_AGENT_NAME }}
+          LINKEDIN_POST_LENGTH: ${{ secrets.LINKEDIN_POST_LENGTH }}
+          TWITTER_POST_LENGTH: ${{ secrets.TWITTER_POST_LENGTH }}
 
-      - name: Persist post history
-        if: always()
+      - name: Persist run state
+        if: steps.interval.outputs.should_run == 'true'
         run: |
-          if [ ! -f .post-history.json ]; then
-            echo "No .post-history.json file found; skipping history persistence."
-            exit 0
-          fi
-
-          if git diff --quiet -- .post-history.json; then
-            echo "Post history unchanged."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .post-history.json
-          git commit -m "chore: update post history [skip ci]"
+
+          echo "$(date -u +%Y-%m-%d)" > .last-post-date
+          git add .last-post-date
+
+          if [ -f .post-history.json ] && ! git diff --quiet -- .post-history.json; then
+            git add .post-history.json
+          fi
+
+          git commit -m "chore: update post state [skip ci]" || echo "Nothing to commit"
           git push origin HEAD:${{ github.ref_name }}

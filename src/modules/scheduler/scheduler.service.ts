@@ -8,7 +8,7 @@ import { LinkedInService } from "../linkedin/linkedin.service";
 import { TwitterService } from "../twitter/twitter.service";
 import { NewsService } from "../news/news.service";
 import { RealNewsItem } from "../news/interfaces/news-item.interface";
-import { POST_FOOTER } from "../../shared/constants/post-footer";
+import { buildPostFooter } from "../../shared/constants/post-footer";
 import { AppLoggerService } from "../../core/logger/logger.service";
 import {
   DailyRunResult,
@@ -98,7 +98,8 @@ export class SchedulerService {
     this.logger.log(`=== Daily post job started at ${runAt.toISOString()} ===`);
 
     // Step 1 — fetch real news
-    const stories = await this.news.fetchTopTechStories(10);
+    const storyCount = this.config.get<number>("app.news.storyCount") ?? 10;
+    const stories = await this.news.fetchTopTechStories(storyCount);
     const postHistory = await this.loadPostHistory();
     const freshStories = this.excludePreviouslyPostedStories(
       stories,
@@ -426,14 +427,27 @@ export class SchedulerService {
       ];
       const candidateStory = candidateStories[0];
 
-      const [linkedInContent, tweetContent] = await Promise.all([
-        this.linkedinEnabled
-          ? this.claude.generateLinkedInPost(candidateStories, date)
-          : Promise.resolve(null),
-        this.twitterEnabled
-          ? this.claude.generateTwitterPost(candidateStories, date)
-          : Promise.resolve(null),
-      ]);
+      let linkedInContent: string | null;
+      let tweetContent: string | null;
+
+      try {
+        const generated = await this.claude.generatePosts(
+          candidateStories,
+          date,
+          {
+            linkedin: this.linkedinEnabled,
+            twitter: this.twitterEnabled,
+          },
+        );
+        linkedInContent = generated.linkedInContent;
+        tweetContent = generated.tweetContent;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Generation failed for "${candidateStory.title}". Trying next candidate. Reason: ${message}`,
+        );
+        continue;
+      }
 
       const duplicateLinkedIn =
         !!linkedInContent &&
@@ -510,7 +524,7 @@ export class SchedulerService {
       .filter((line) => !line.toLowerCase().startsWith("source:"))
       .filter((line) => !/^https?:\/\//i.test(line))
       .filter((line) => !line.startsWith("#"))
-      .filter((line) => !line.includes(POST_FOOTER));
+      .filter((line) => !line.includes(buildPostFooter()));
 
     return lines
       .join(" ")
