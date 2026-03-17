@@ -2,6 +2,20 @@
   "version": 1,
   "entries": [
     {
+      "fingerprint": "https://dev.to/dvoraj75/why-postgresql-row-level-security-is-the-right-approach-to-django-multitenancy-3e1m|why postgresql row level security is the right approach to django multitenancy|dev.to",
+      "normalizedUrl": "https://dev.to/dvoraj75/why-postgresql-row-level-security-is-the-right-approach-to-django-multitenancy-3e1m",
+      "normalizedTitle": "why postgresql row level security is the right approach to django multitenancy",
+      "source": "Dev.to",
+      "originalUrl": "https://dev.to/dvoraj75/why-postgresql-row-level-security-is-the-right-approach-to-django-multitenancy-3e1m",
+      "originalTitle": "Why PostgreSQL Row-Level Security Is the Right Approach to Django Multitenancy",
+      "postedAt": "2026-03-17T09:59:58.042Z",
+      "platforms": [
+        "linkedin"
+      ],
+      "linkedinHash": "3864c74e",
+      "linkedinSignature": "2021 access agent almost always amounts application applications approaches architecture auditing auto because become bloat bounty broken built bypass catalog celery code command commands commonly control convention count custom data database discipline django enforces engineering entirely every everything exactly failure filter filtering filters forgetting forgot form guarantee idor implications incident insight introduce involved isolation issue layer leak level library linearly lives made management manager mechanism migration migrations missing mode model moved moves multi must nadeem noting owasp packages party pattern position possible posted postgresql problem query remember reported root safety same scale schema security silently simply some something starts statement structural surfaced systems task tenant tenants tested third times usama vulnerabilities waiting whether worth"
+    },
+    {
       "fingerprint": "https://dev.to/devteam/congrats-to-the-github-copilot-cli-challenge-winners-2240|congrats to the github copilot cli challenge winners|dev.to",
       "normalizedUrl": "https://dev.to/devteam/congrats-to-the-github-copilot-cli-challenge-winners-2240",
       "normalizedTitle": "congrats to the github copilot cli challenge winners",
