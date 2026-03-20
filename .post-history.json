@@ -2,6 +2,20 @@
   "version": 1,
   "entries": [
     {
+      "fingerprint": "https://dev.to/teolex2020/i-built-a-cognitive-layer-for-ai-agents-that-learns-without-llm-calls-33no|i built a cognitive layer for ai agents that learns without llm calls|dev.to",
+      "normalizedUrl": "https://dev.to/teolex2020/i-built-a-cognitive-layer-for-ai-agents-that-learns-without-llm-calls-33no",
+      "normalizedTitle": "i built a cognitive layer for ai agents that learns without llm calls",
+      "source": "Dev.to",
+      "originalUrl": "https://dev.to/teolex2020/i-built-a-cognitive-layer-for-ai-agents-that-learns-without-llm-calls-33no",
+      "originalTitle": "I built a cognitive layer for AI agents that learns without LLM calls",
+      "postedAt": "2026-03-20T09:51:30.665Z",
+      "platforms": [
+        "linkedin"
+      ],
+      "linkedinHash": "745a1930",
+      "linkedinSignature": "16ms 29ms agent agentic agents approach architectural architecture architectures assumption aurasdk auto available barrier behavioral belief bottlenecks bound breaks building built call calls capability causal changes cloud cognitive completed concept core cost could critical current cycles decoupling default dependencies dependency derives designing determinism deterministic directly eliminate embeddings enable engine engineering entirely environments evaluate evaluating every existing feasible formation full gapped happens hide hints implications improves inference infrastructure insight introduces latency layer learning local locally lowering makes meaningfully mem0 memory milliseconds nadeem nobody observation offline path patterns pipeline policy posted pure python question real recall reduces regulated removes require required requires rules running runtime rust service should significant silent similar single source stack step stored structured surface surfaces system systems teams today token usama whether without writes"
+    },
+    {
       "fingerprint": "https://dev.to/dvoraj75/why-postgresql-row-level-security-is-the-right-approach-to-django-multitenancy-3e1m|why postgresql row level security is the right approach to django multitenancy|dev.to",
       "normalizedUrl": "https://dev.to/dvoraj75/why-postgresql-row-level-security-is-the-right-approach-to-django-multitenancy-3e1m",
       "normalizedTitle": "why postgresql row level security is the right approach to django multitenancy",
