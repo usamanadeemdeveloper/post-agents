@@ -2,6 +2,20 @@
   "version": 1,
   "entries": [
     {
+      "fingerprint": "https://www.typescriptlang.org/docs|typescript keeps tightening the feedback loop between developer intent and runtime safety|typescript docs",
+      "normalizedUrl": "https://www.typescriptlang.org/docs",
+      "normalizedTitle": "typescript keeps tightening the feedback loop between developer intent and runtime safety",
+      "source": "TypeScript Docs",
+      "originalUrl": "https://www.typescriptlang.org/docs/",
+      "originalTitle": "TypeScript keeps tightening the feedback loop between developer intent and runtime safety",
+      "postedAt": "2026-03-23T10:07:52.611Z",
+      "platforms": [
+        "linkedin"
+      ],
+      "linkedinHash": "d3f5d999",
+      "linkedinSignature": "accumulates accumulating actual agent agreements ambiguity analysis architecture aren auto before between boundaries boundary built catching code codebase codebases combination components contract contracts correctness cost coupling creating debt depends developer difference does drift editor enforceable enforced engineering evaluate ever explicit fastest feedback full gives gradual grows hidden implications implicit important improves incident incrementally insight intent invisible large loops make makes migration modern module modules multi nadeem path pipelines posted practical pressure production quietly reduces refactor requiring rewrite risk runs runtime services should something static structurally surfaces systems team teams technical those tightest tooling type typescript typing undeclared until usama visible without"
+    },
+    {
       "fingerprint": "https://dev.to/teolex2020/i-built-a-cognitive-layer-for-ai-agents-that-learns-without-llm-calls-33no|i built a cognitive layer for ai agents that learns without llm calls|dev.to",
       "normalizedUrl": "https://dev.to/teolex2020/i-built-a-cognitive-layer-for-ai-agents-that-learns-without-llm-calls-33no",
       "normalizedTitle": "i built a cognitive layer for ai agents that learns without llm calls",
