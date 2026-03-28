@@ -2,6 +2,20 @@
   "version": 1,
   "entries": [
     {
+      "fingerprint": "https://dev.to/morganwilliscloud/ai-agents-dont-need-complex-workflows-build-one-in-python-in-10-minutes-2m5d|ai agents don t need complex workflows build one in python in 10 minutes|dev.to",
+      "normalizedUrl": "https://dev.to/morganwilliscloud/ai-agents-dont-need-complex-workflows-build-one-in-python-in-10-minutes-2m5d",
+      "normalizedTitle": "ai agents don t need complex workflows build one in python in 10 minutes",
+      "source": "Dev.to",
+      "originalUrl": "https://dev.to/morganwilliscloud/ai-agents-dont-need-complex-workflows-build-one-in-python-in-10-minutes-2m5d",
+      "originalTitle": "AI Agents Don’t Need Complex Workflows. Build One in Python in 10 Minutes",
+      "postedAt": "2026-03-28T09:44:48.881Z",
+      "platforms": [
+        "linkedin"
+      ],
+      "linkedinHash": "b11cf97a",
+      "linkedinSignature": "agent auto back brittle builders building built calls changes code decides easy every figure giving handling happens insight letting logic manage matters model nadeem posted python rest retries rewiring right routing same sequence setups some stack start state time tool tools track usama wire workflow works write"
+    },
+    {
       "fingerprint": "https://www.typescriptlang.org/docs|typescript keeps tightening the feedback loop between developer intent and runtime safety|typescript docs",
       "normalizedUrl": "https://www.typescriptlang.org/docs",
       "normalizedTitle": "typescript keeps tightening the feedback loop between developer intent and runtime safety",
