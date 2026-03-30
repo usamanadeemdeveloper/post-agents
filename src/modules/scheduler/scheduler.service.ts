@@ -63,7 +63,7 @@ export class SchedulerService {
 
     this.linkedinEnabled = !!(
       this.config.get("app.linkedin.accessToken") &&
-      this.config.get("app.linkedin.personUrn")
+      this.config.get("app.linkedin.authorUrn")
     );
 
     this.twitterEnabled = !!(

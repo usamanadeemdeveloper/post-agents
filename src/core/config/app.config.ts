@@ -15,7 +15,7 @@ export default registerAs("app", () => ({
 
   linkedin: {
     accessToken: process.env.LINKEDIN_ACCESS_TOKEN,
-    personUrn: process.env.LINKEDIN_PERSON_URN,
+    authorUrn: process.env.LINKEDIN_AUTHOR_URN || process.env.LINKEDIN_PERSON_URN,
   },
 
   twitter: {
@@ -48,7 +48,6 @@ export default registerAs("app", () => ({
   prompts: {
     postingStyle: process.env.POSTING_STYLE ?? '',
     defaultTone: process.env.DEFAULT_TONE ?? '',
-    promptVersion: process.env.PROMPT_VERSION ?? '',
     linkedInPostLength: process.env.LINKEDIN_POST_LENGTH || '',
     twitterPostLength: process.env.TWITTER_POST_LENGTH || '',
   },

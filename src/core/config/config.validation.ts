@@ -16,6 +16,7 @@ export const configValidationSchema = Joi.object({
 
   // LinkedIn — optional, but at least one platform must be configured
   LINKEDIN_ACCESS_TOKEN: Joi.string().allow("").optional(),
+  LINKEDIN_AUTHOR_URN: Joi.string().allow("").optional(),
   LINKEDIN_PERSON_URN: Joi.string().allow("").optional(),
 
   // Twitter / X — optional, but at least one platform must be configured
@@ -50,7 +51,6 @@ export const configValidationSchema = Joi.object({
     .allow("")
     .optional(),
   DEFAULT_TONE: Joi.string().allow("").optional(),
-  PROMPT_VERSION: Joi.string().allow("").optional(),
 
   // Slack approval gate (optional — if not set, posts publish immediately)
   SLACK_BOT_TOKEN: Joi.string().allow("").optional(),

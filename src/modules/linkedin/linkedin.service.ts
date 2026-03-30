@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { HttpService } from "@nestjs/axios";
+import { AxiosError } from "axios";
 import { firstValueFrom } from "rxjs";
 import { AppLoggerService } from "../../core/logger/logger.service";
 import { SocialPostResult } from "../../shared/interfaces/social-post.interface";
@@ -8,7 +9,7 @@ import { SocialPostResult } from "../../shared/interfaces/social-post.interface"
 @Injectable()
 export class LinkedInService implements OnModuleInit {
   private accessToken: string;
-  private personUrn: string;
+  private authorUrn: string;
   private readonly apiBase = "https://api.linkedin.com/v2";
   private publishRetryAttempts: number;
 
@@ -22,9 +23,9 @@ export class LinkedInService implements OnModuleInit {
 
   onModuleInit(): void {
     const accessToken = this.config.get<string>("app.linkedin.accessToken");
-    const personUrn = this.config.get<string>("app.linkedin.personUrn");
+    const authorUrn = this.config.get<string>("app.linkedin.authorUrn");
 
-    if (!accessToken || !personUrn) {
+    if (!accessToken || !authorUrn) {
       this.logger.warn(
         "LinkedIn credentials not configured — skipping client init",
       );
@@ -32,17 +33,25 @@ export class LinkedInService implements OnModuleInit {
     }
 
     this.accessToken = accessToken;
-    this.personUrn = personUrn;
+    this.authorUrn = authorUrn;
     this.publishRetryAttempts =
       this.config.get<number>("app.scheduler.publishRetryAttempts") ?? 3;
-    this.logger.log("LinkedIn service initialized");
+    const authorType = this.authorUrn.startsWith("urn:li:organization:")
+      ? "organization"
+      : "member";
+    this.logger.log(`LinkedIn service initialized for ${authorType} author`);
+    if (authorType === "organization") {
+      this.logger.log(
+        "Organization posting requires org-scoped LinkedIn permissions and a page role for the authenticated member",
+      );
+    }
   }
 
   async createPost(content: string): Promise<SocialPostResult> {
     this.logger.log("Publishing post to LinkedIn...");
 
     const body = {
-      author: this.personUrn,
+      author: this.authorUrn,
       lifecycleState: "PUBLISHED",
       specificContent: {
         "com.linkedin.ugc.ShareContent": {
@@ -81,7 +90,7 @@ export class LinkedInService implements OnModuleInit {
           postedAt: new Date(),
         };
       } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
+        lastError = this.describePublishError(error);
         this.logger.warn(
           `LinkedIn publish attempt ${attempt}/${this.publishRetryAttempts} failed: ${lastError}`,
         );
@@ -102,5 +111,19 @@ export class LinkedInService implements OnModuleInit {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private describePublishError(error: unknown): string {
+    if (error instanceof AxiosError) {
+      const status = error.response?.status;
+      const details =
+        typeof error.response?.data === "string"
+          ? error.response.data
+          : JSON.stringify(error.response?.data);
+
+      return status ? `HTTP ${status}${details ? ` — ${details}` : ""}` : error.message;
+    }
+
+    return error instanceof Error ? error.message : String(error);
   }
 }

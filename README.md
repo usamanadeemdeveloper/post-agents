@@ -81,18 +81,28 @@ Persist .last-post-date only if at least one platform actually published
 
 **Step 2 — Get your access token**
 1. Go to [linkedin.com/developers/tools/oauth](https://www.linkedin.com/developers/tools/oauth)
-2. Select your app, tick scopes: `w_member_social`, `openid`, `profile`
-3. Tick the redirect URL checkbox → **Request access token** → copy it → `LINKEDIN_ACCESS_TOKEN`
+2. If you are posting to your personal profile, tick scopes: `w_member_social`, `openid`, `profile`
+3. If you are posting to a company page, your app must have organization posting access and the authenticated member must consent to `w_organization_social`
+4. Tick the redirect URL checkbox → **Request access token** → copy it → `LINKEDIN_ACCESS_TOKEN`
 
 > ⚠️ LinkedIn tokens **expire after 60 days**. Set a calendar reminder to regenerate before expiry.
 
-**Step 3 — Find your Person URN**
+**Step 3 — Choose your author URN**
+
+For a personal profile:
 ```bash
 curl -H "Authorization: Bearer YOUR_TOKEN" https://api.linkedin.com/v2/userinfo
 ```
-Copy the `sub` value → your URN is `urn:li:person:THAT_VALUE` → `LINKEDIN_PERSON_URN`
+Copy the `sub` value → your URN is `urn:li:person:THAT_VALUE` → `LINKEDIN_AUTHOR_URN`
 
-> To post as a company page instead: `urn:li:organization:xxxxxxxx`
+For a company page:
+1. Use the company page's numeric organization URN: `urn:li:organization:xxxxxxxx`
+2. Set that value as `LINKEDIN_AUTHOR_URN`
+3. Make sure the LinkedIn member who generated the token is allowed to post for that page
+
+> Backward compatibility: `LINKEDIN_PERSON_URN` still works, but `LINKEDIN_AUTHOR_URN` is the clearer setting going forward.
+
+> If you use an organization URN with a token that only has `w_member_social`, LinkedIn will reject the publish request with a 403-class authorization error.
 
 ---
 
@@ -203,7 +213,7 @@ npm install
 
 # 2. Configure environment
 cp .env.example .env
-# Fill in at minimum: ANTHROPIC_API_KEY, LINKEDIN_ACCESS_TOKEN, LINKEDIN_PERSON_URN
+# Fill in at minimum: ANTHROPIC_API_KEY, LINKEDIN_ACCESS_TOKEN, LINKEDIN_AUTHOR_URN
 # Recommended for first run: NEWS_NICHE=business-architect, POSTING_STYLE=business-architect
 
 # 3. Test LinkedIn credentials first (no Claude credits needed)
@@ -233,7 +243,7 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude API key from console.anthropic.com |
 | `LINKEDIN_ACCESS_TOKEN` | LinkedIn OAuth access token |
-| `LINKEDIN_PERSON_URN` | `urn:li:person:xxxxxx` from `/v2/userinfo` |
+| `LINKEDIN_AUTHOR_URN` | `urn:li:person:xxxxxx` for a member profile or `urn:li:organization:xxxxxx` for a company page |
 
 #### Recommended
 
@@ -346,6 +356,9 @@ Set the `POST_INTERVAL_DAYS` GitHub Secret to any number of days. No code change
 
 **Posts stopped after ~60 days**
 → LinkedIn token expired. Regenerate at [linkedin.com/developers/tools/oauth](https://www.linkedin.com/developers/tools/oauth) and update `LINKEDIN_ACCESS_TOKEN`.
+
+**LinkedIn company-page post fails with HTTP 403**
+→ `LINKEDIN_AUTHOR_URN` is set to `urn:li:organization:...` but the access token is missing org-posting permission or the authenticated member is not allowed to post for that page. Regenerate the token with `w_organization_social` and confirm the member has a valid page role.
 
 **`AuthenticationError: invalid x-api-key`**
 → Check `ANTHROPIC_API_KEY` — must start with `sk-ant-`, no extra spaces.
